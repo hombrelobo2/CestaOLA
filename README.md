@@ -116,3 +116,11 @@ CESTAOLA_ADMIN_PASSWORD=prueba .venv/bin/python wsgi.py   # http://127.0.0.1:800
 ```
 
 Hecho con Flask, SQLite y ReportLab. Sin JavaScript de terceros ni fuentes externas: carga rápido incluso con mala cobertura.
+
+## 📜 Licencia
+
+Code por **Hombrelobo**.
+
+CestaOLA es software libre: puedes redistribuirlo y modificarlo bajo los términos de la
+[Licencia Pública General de GNU versión 3](LICENSE) (GPL-3.0) publicada por la Free Software Foundation.
+Se distribuye con la esperanza de que sea útil, pero **sin ninguna garantía**. Consulta el archivo `LICENSE` para más detalles.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CestaOLA · Code por Hombrelobo
 """Generación de PDFs: papeletas para la bolsa y cartel de lotes."""
 import io
 import os

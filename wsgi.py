@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CestaOLA · Code por Hombrelobo
 """Punto de entrada para gunicorn:  gunicorn wsgi:app"""
 from cestaola import create_app
 

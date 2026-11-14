@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later · CestaOLA · Code por Hombrelobo */
 // CestaOLA — pequeños detalles de interfaz (sin dependencias)
 (function () {
   function euros(cent) {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later · CestaOLA · Code por Hombrelobo */
 /* CestaOLA — estética cálida de cesta navideña: crema, vino, oro y verde abeto */
 :root {
   --fondo: #f6efe4;
@@ -246,7 +247,7 @@ table.tabla { width: 100%; border-collapse: collapse; font-size: .92rem; }
 details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino); }
 .inline-input { width: auto !important; padding: 6px 10px !important; border-radius: 8px !important; }
 
-.pie { text-align: center; color: var(--suave); font-size: .85rem; padding: 30px 0 40px; }
+.pie { text-align: center; color: var(--suave); font-size: .85rem; padding: 30px 0 40px; line-height: 1.9; }
 .pie a { color: var(--suave); }
 
 @media (max-width: 560px) {
@@ -265,3 +266,4 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .tarjeta { padding: 16px; }
   .cabecera { padding: 28px 0 60px; }
 }
+.pie .github { display: inline-flex; align-items: center; gap: 6px; }

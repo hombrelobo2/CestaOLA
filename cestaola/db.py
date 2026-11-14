@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CestaOLA · Code por Hombrelobo
 """Acceso a SQLite: esquema, ajustes y consultas comunes."""
 import json
 import os

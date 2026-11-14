@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CestaOLA · Code por Hombrelobo
 """Prueba de extremo a extremo:  python -m pytest -q   (o  python tests/test_app.py)"""
 import io
 import os

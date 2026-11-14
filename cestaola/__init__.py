@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CestaOLA · Code por Hombrelobo
 """CestaOLA: web para el sorteo de la cesta de la empresa."""
 import csv
 import hmac
