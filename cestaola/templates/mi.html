@@ -71,6 +71,7 @@
     <p class="muted">Con este enlace vuelves a tus papeletas y puedes comprar más cuando quieras, desde cualquier móvil. No lo compartas con otros.</p>
     <div class="dato" style="margin-bottom:12px"><div style="min-width:0"><small>Tu enlace</small><b class="peq" style="font-weight:600">{{ enlace }}</b></div></div>
     <div class="botones">
+      <a class="btn" href="{{ url_for('resguardo_total', token=persona.token, t=ahora()) }}" target="_blank">📄 Resguardo de todo</a>
       <button class="btn oro" type="button" data-copiar="{{ enlace }}">Copiar enlace</button>
       <button class="btn sec" type="button" data-compartir="{{ enlace }}" data-texto="Mis papeletas de {{ aj.titulo }}:">Guardármelo en WhatsApp</button>
     </div>

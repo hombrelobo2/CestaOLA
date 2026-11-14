@@ -101,6 +101,11 @@ def test_flujo_completo():
     m = re.search(r'href="(/mi/[^/]+/resguardo/(\d+))', r.text)
     assert c.get(m.group(1)).data[:4] == b"%PDF"
     assert "Descargar resguardo" not in c.get("/admin?estado=todas").text   # solo se muestra una vez
+    r = pub.get(f"/mi/{token}/resguardo")          # resumen de varias reservas
+    assert r.data[:4] == b"%PDF" and "resguardo-Mar" in r.headers["Content-Disposition"]
+    open(os.path.join(tmp, "resguardo-total.pdf"), "wb").write(r.data)
+    assert "Resguardo de todo" in pub.get(f"/mi/{token}").text
+    assert c.get("/admin").text.count("🔗 Enlace") >= 3
     c.post(f"/admin/compra/{m.group(2)}/borrar", data={"_csrf": tok})
     r = c.get("/admin?estado=confirmado")
     assert r.text.count("Deshacer") == 3

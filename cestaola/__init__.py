@@ -216,6 +216,33 @@ def create_app(test_config=None):
                         secure=app.config["SESSION_COOKIE_SECURE"])
         return resp
 
+    @app.get("/mi/<token>/resguardo")
+    def resguardo_total(token):
+        """Resguardo con todas las reservas (no anuladas) de una persona."""
+        persona = D.persona_por_token(token)
+        if not persona:
+            abort(404)
+        compras = D.get_db().execute(
+            "SELECT * FROM compras WHERE persona_id=? AND estado!='rechazado' ORDER BY id", (persona["id"],)).fetchall()
+        if not compras:
+            abort(404, "Esta persona no tiene reservas.")
+        if len(compras) == 1:
+            return resguardo(token, compras[0]["id"])
+        conf = sum(c["cantidad"] for c in compras if c["estado"] == "confirmado")
+        formas = {("Bizum" if c["metodo"] == "bizum" else "En mano") + (f" a {c['receptor']}" if c["receptor"] else "")
+                  for c in compras}
+        resumen = {
+            "cantidad": sum(c["cantidad"] for c in compras),
+            "importe_cent": sum(c["cantidad"] * c["precio_cent"] for c in compras),
+            "pago_txt": formas.pop() if len(formas) == 1 else "Varias formas de pago",
+            "reservas": " · ".join(concepto(c["id"]) for c in compras),
+            "estado": "confirmado" if all(c["estado"] == "confirmado" for c in compras) else "pendiente",
+            "creado": compras[-1]["creado"],
+        }
+        datos = pdfs.pdf_resguardo(D.ajustes(), persona, resumen, "RESUMEN",
+                                   url_externa("mi", token=token), conf)
+        return enviar_pdf(datos, "resguardo-" + "".join(ch for ch in persona["nombre"] if ch.isalnum())[:30])
+
     @app.get("/mi/<token>/resguardo/<int:cid>")
     def resguardo(token, cid):
         persona = D.persona_por_token(token)

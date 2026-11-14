@@ -157,7 +157,15 @@
         <td class="num"><b>{{ p.confirmadas }}</b> <span class="muted peq">en bolsa</span></td>
         <td class="num">{% if p.pendientes %}{{ p.pendientes }} <span class="muted peq">pend.</span>{% endif %}</td>
         <td class="num">{{ p.pagado_cent|euros }}</td>
-        <td><button class="btn sec peq" type="button" data-copiar="{{ request.url_root.rstrip('/') }}{{ url_for('mi', token=p.token) }}">Copiar</button></td>
+        <td class="acciones-persona" style="white-space:nowrap">
+          {% if p.n_compras %}
+          <a class="btn sec peq" href="{{ url_for('resguardo_total', token=p.token, t=ahora()) }}" target="_blank">📄 Resguardo</a>
+          <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo_total', token=p.token) }}"
+                  data-nombre="resguardo-{{ p.nombre|replace(' ', '-') }}.pdf"
+                  data-texto="Tu resguardo del sorteo. Tus papeletas: {{ url_mi(p.token) }}">📤</button>
+          {% endif %}
+          <button class="btn sec peq" type="button" data-copiar="{{ url_mi(p.token) }}">🔗 Enlace</button>
+        </td>
         <td>
           <form method="post" action="{{ url_for('admin_persona', pid=p.id) }}" data-confirmar="¿Borrar a {{ p.nombre }} y todas sus compras?">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="borrar"><input type="hidden" name="estado" value="{{ filtro }}">

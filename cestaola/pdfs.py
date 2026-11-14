@@ -286,17 +286,25 @@ def pdf_resguardo(aj, persona, compra, concepto, enlace, total_confirmadas):
     c.drawString(8 * mm, H - 38 * mm, persona["nombre"])
 
     # Datos
-    pago = "Bizum" if compra["metodo"] == "bizum" else "En mano"
-    if compra["receptor"]:
-        pago += f" a {compra['receptor']}"
-    if compra["metodo"] == "bizum" and compra["receptor_tel"]:
-        pago += f" ({compra['receptor_tel']})"
+    compra = dict(compra)
+    if compra.get("pago_txt"):
+        pago = compra["pago_txt"]
+    else:
+        pago = "Bizum" if compra["metodo"] == "bizum" else "En mano"
+        if compra["receptor"]:
+            pago += f" a {compra['receptor']}"
+        if compra["metodo"] == "bizum" and compra["receptor_tel"]:
+            pago += f" ({compra['receptor_tel']})"
+    importe = compra.get("importe_cent", compra.get("cantidad", 0) * compra.get("precio_cent", 0))
     filas = [
         ("Papeletas", f"{compra['cantidad']}"),
-        ("Importe", euros(compra["cantidad"] * compra["precio_cent"])),
+        ("Importe", euros(importe)),
         ("Pago", pago),
-        ("Reservado", _fecha(compra["creado"])),
     ]
+    if compra.get("reservas"):
+        filas.append(("Reservas", compra["reservas"]))
+    else:
+        filas.append(("Reservado", _fecha(compra["creado"])))
     if aj.get("fecha_sorteo"):
         filas.append(("Sorteo", aj["fecha_sorteo"][:40]))
     y = H - 47 * mm

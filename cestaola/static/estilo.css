@@ -263,6 +263,7 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .tarjetas-movil td.acciones .btn { padding: 10px 14px; }
   .tarjetas-movil tr:hover td { background: transparent; }
   .tarjetas-movil .inline-input { flex: 1; min-width: 0 !important; }
+  .tarjetas-movil td.acciones-persona { width: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
   .tarjeta { padding: 16px; }
   .cabecera { padding: 28px 0 60px; }
 }
