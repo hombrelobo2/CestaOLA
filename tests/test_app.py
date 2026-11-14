@@ -93,6 +93,15 @@ def test_flujo_completo():
     tok = _csrf(c.get("/admin").text)
     for cid in (1, 2, 3):
         c.post(f"/admin/compra/{cid}/confirmar", data={"_csrf": tok})
+    # alta manual -> aviso con resguardo
+    c.post("/admin/compra/nueva", data={"_csrf": tok, "nombre": "Josu Etxeberria", "cantidad": "4",
+                                        "pago": "mano:0", "confirmada": "1"})
+    r = c.get("/admin?estado=todas")
+    assert "Descargar resguardo" in r.text and "Josu Etxeberria" in r.text
+    m = re.search(r'href="(/mi/[^/]+/resguardo/(\d+))', r.text)
+    assert c.get(m.group(1)).data[:4] == b"%PDF"
+    assert "Descargar resguardo" not in c.get("/admin?estado=todas").text   # solo se muestra una vez
+    c.post(f"/admin/compra/{m.group(2)}/borrar", data={"_csrf": tok})
     r = c.get("/admin?estado=confirmado")
     assert r.text.count("Deshacer") == 3
     assert "15,00 €" in r.text  # 6 papeletas x 2,50

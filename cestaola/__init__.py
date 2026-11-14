@@ -303,7 +303,13 @@ def create_app(test_config=None):
             if k in vistos:
                 repetidos.add(k)
             vistos[k] = True
-        return render_template("admin/panel.html", compras=compras, filtro=filtro, quien=quien,
+        ultima = None
+        if session.get("ultima_alta"):
+            ultima = D.get_db().execute(
+                "SELECT c.*, pe.nombre, pe.token FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE c.id=?",
+                (session.pop("ultima_alta"),)).fetchone()
+        return render_template("admin/panel.html", compras=compras, filtro=filtro, quien=quien, ultima=ultima,
+                               url_mi=lambda t: url_externa("mi", token=t),
                                res=D.resumen(), personas=personas, repetidos=repetidos,
                                receptores=D.por_receptor())
 
@@ -348,12 +354,12 @@ def create_app(test_config=None):
             pid = db.execute("INSERT INTO personas (nombre, token) VALUES (?, ?)",
                              (nombre, D.nuevo_token())).lastrowid
         estado = "confirmado" if request.form.get("confirmada") else "pendiente"
-        db.execute("INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, receptor, receptor_tel, "
+        cur = db.execute("INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, receptor, receptor_tel, "
                    "estado, confirmado, nota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'alta manual')",
                    (pid, cantidad, aj["precio_cent"], pago["metodo"], pago["nombre"], pago["tel"], estado,
                     datetime.now().strftime("%Y-%m-%d %H:%M") if estado == "confirmado" else None))
         db.commit()
-        flash("Participación añadida.", "ok")
+        session["ultima_alta"] = cur.lastrowid
         return redirect(url_for("admin", estado="todas"))
 
     @app.post("/admin/persona/<int:pid>")

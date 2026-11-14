@@ -14,6 +14,20 @@
     </form>
   </div>
 
+  {% if ultima %}
+  <div class="aviso ok" style="margin-bottom:16px">
+    <p style="margin-bottom:10px">✅ Añadida <b>{{ concepto(ultima.id) }}</b>: {{ ultima.cantidad }} papeleta{{ 's' if ultima.cantidad != 1 }} para <b>{{ ultima.nombre }}</b>
+      ({{ 'pagado' if ultima.estado == 'confirmado' else 'pendiente de pago' }}).</p>
+    <div class="botones">
+      <a class="btn verde peq" href="{{ url_for('resguardo', token=ultima.token, cid=ultima.id, t=ahora()) }}" target="_blank">📄 Descargar resguardo</a>
+      <button class="btn sec peq" type="button" data-compartir-pdf="{{ url_for('resguardo', token=ultima.token, cid=ultima.id) }}"
+              data-nombre="resguardo-{{ concepto(ultima.id) }}.pdf"
+              data-texto="Tu resguardo del sorteo ({{ concepto(ultima.id) }}). Tus papeletas: {{ url_mi(ultima.token) }}">📤 Enviar resguardo</button>
+      <button class="btn sec peq" type="button" data-copiar="{{ url_mi(ultima.token) }}">🔗 Copiar su enlace</button>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="cifras" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom:16px">
     <div class="cifra"><b>{{ res.recaudado|euros }}</b><span>confirmado · {{ res.papeletas }} papeletas</span></div>
     <div class="cifra"><b style="color:#7a5a12">{{ res.pendiente|euros }}</b><span>pendiente · {{ res.papeletas_pend }} papeletas</span></div>
@@ -67,7 +81,10 @@
           <td><span class="estado {{ c.estado }}">{{ c.estado }}</span></td>
           <td class="acciones" style="white-space:nowrap">
             {% set volver = url_for('admin', estado=filtro, quien=quien) %}
-            <a class="btn sec peq" href="{{ url_for('resguardo', token=c.token, cid=c.id, t=ahora()) }}" target="_blank" title="Resguardo">📄</a>
+            <a class="btn sec peq" href="{{ url_for('resguardo', token=c.token, cid=c.id, t=ahora()) }}" target="_blank">📄 Resguardo</a>
+            <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo', token=c.token, cid=c.id) }}"
+                    data-nombre="resguardo-{{ concepto(c.id) }}.pdf"
+                    data-texto="Tu resguardo del sorteo ({{ concepto(c.id) }}). Tus papeletas: {{ url_mi(c.token) }}">📤</button>
             {% if c.estado != 'confirmado' %}
             <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='confirmar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn verde peq">✓ Cobrado</button></form>
             {% else %}

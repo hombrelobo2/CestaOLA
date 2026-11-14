@@ -45,6 +45,27 @@
     });
   });
 
+  // Compartir un PDF (resguardo) como archivo: WhatsApp, Telegram, correo... desde el móvil.
+  // Si el navegador no permite compartir archivos, se abre el PDF y se copia el texto.
+  document.querySelectorAll('[data-compartir-pdf]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var url = b.dataset.compartirPdf, nombre = b.dataset.nombre || 'resguardo.pdf', texto = b.dataset.texto || '';
+      var original = b.textContent; b.textContent = '…';
+      fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now(), { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+        .then(function (blob) {
+          var f = new File([blob], nombre, { type: 'application/pdf' });
+          if (navigator.canShare && navigator.canShare({ files: [f] })) {
+            return navigator.share({ files: [f], text: texto, title: nombre });
+          }
+          window.open(URL.createObjectURL(blob), '_blank');
+          if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(texto);
+        })
+        .catch(function (e) { if (e && e.name !== 'AbortError') window.open(url, '_blank'); })
+        .then(function () { b.textContent = original; });
+    });
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });
