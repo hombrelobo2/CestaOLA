@@ -4,22 +4,25 @@ Web para organizar el sorteo de la cesta de la empresa. Se manda el enlace al gr
 
 1. Ve los **lotes** con su foto, descripción y **precio real** (cuentas claras, amigos eternos).
 2. Pone su **nombre** y cuántas **papeletas** quiere.
-3. Elige **Bizum** (la web le da teléfono, importe y un **concepto único** como `OLA-0007` para copiarlos) o **en mano**.
+3. Elige **a quién paga**: por **Bizum** a uno de los organizadores (la web le da su teléfono, el importe y un **concepto único** como `OLA-0007` para copiarlos) o **en mano** a uno de los que recogen el dinero.
 4. Recibe su **enlace personal** para volver cuando quiera, ver si ya le han confirmado el pago y **comprar más papeletas**. El móvil también la recuerda.
 
 Los organizadores, desde `/admin`:
 
 - **Confirman los pagos** con un toque (*✓ Cobrado*). Hasta entonces las papeletas no entran en la bolsa.
+- Ven **quién tiene el dinero**: cuánto ha cobrado y cuánto le falta por cobrar cada organizador, y pueden filtrar los pagos de cada uno.
 - Dan de alta a mano a quien paga sin usar la web.
 - Gestionan los **lotes** (foto desde el móvil, descripción y precio).
 - **Cierran la venta** e imprimen el **PDF de papeletas**: A4 con 10 papeletas de **10 × 5 cm**, una por participación confirmada, con el nombre en grande y línea de corte.
 - El día del sorteo apuntan quién ha ganado cada lote (o usan el **sorteo digital ponderado** si no hay bolsa) y lo **publican** en la web.
-- Descargan el **PDF de lotes** (con premiados y balance) y un **CSV** con todos los pagos.
+- Imprimen el **PDF de lotes para sobres**: 3 por A4 vertical, con foto, nombre y descripción, para recortar y meter cada uno en su sobre.
+- Descargan un **CSV** con todos los pagos.
 
 <p align="center">
   <img src="docs/movil-inicio.png" width="240" alt="Portada en el móvil">
   <img src="docs/movil-mis-papeletas.png" width="240" alt="Mis papeletas">
   <img src="docs/papeletas.png" width="240" alt="PDF de papeletas">
+  <img src="docs/lotes-sobres.png" width="240" alt="PDF de lotes para sobres">
 </p>
 
 > **Sobre Bizum:** un particular no puede cobrar Bizum *dentro* de una web (para eso hace falta un TPV de empresa con el banco). Por eso la web da los datos para copiar y el organizador confirma cuando ve el Bizum en su banco. El concepto `OLA-0007` sirve para saber de quién es cada uno.
@@ -50,7 +53,7 @@ bash /opt/cestaola/deploy/install.sh
 
 Al terminar te muestra la dirección (`http://IP:8000`) y la **contraseña de admin** que ha generado.
 
-Ya puedes probarla desde tu red local. Entra en `/admin` → **Ajustes** y pon título, precio por papeleta, teléfono de Bizum y fecha del sorteo. Luego, en **Lotes**, añade los premios.
+Ya puedes probarla desde tu red local. Entra en `/admin` → **Ajustes** y pon título, precio por papeleta, fecha del sorteo, **quién recibe Bizum** (nombre y teléfono, los que queráis) y **quién recoge en mano** (solo nombre). Luego, en **Lotes**, añade los premios.
 
 ### Configuración
 

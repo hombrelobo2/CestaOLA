@@ -44,8 +44,9 @@ def test_flujo_completo():
 
     # ajustes y lote con foto
     r = c.post("/admin/ajustes", data={"_csrf": tok, "precio": "2,50", "titulo": "Cesta OLA 2026",
-                                        "texto": "Hola", "bizum_telefono": "600 111 222",
-                                        "bizum_titular": "Ana", "fecha_sorteo": "19 dic",
+                                        "texto": "Hola", "bizum_nombre": ["Ana", "Pedro", ""],
+                                        "bizum_tel": ["600 111 222", "611 222 333", ""],
+                                        "mano_nombre": ["Luis", "Marta", ""], "fecha_sorteo": "19 dic",
                                         "prefijo": "ola", "max_por_compra": "40"})
     assert r.status_code == 302
     r = c.post("/admin/premios/nuevo", data={"_csrf": tok, "nombre": "Cesta ibérica",
@@ -61,21 +62,25 @@ def test_flujo_completo():
     pub = app.test_client()
     tok = _csrf(pub.get("/").text)
     r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega",
-                                     "cantidad": "3", "metodo": "bizum"})
+                                     "cantidad": "3", "pago": "bizum:1"})
     assert r.status_code == 302
     enlace = r.headers["Location"]
     r = pub.get(enlace)
-    assert "OLA-0001" in r.text and "7,50 €" in r.text and "600 111 222" in r.text
+    assert "OLA-0001" in r.text and "7,50 €" in r.text and "611 222 333" in r.text and "a Pedro" in r.text
     token = re.search(r"/mi/([^?\"]+)", enlace).group(1)
     # vuelve con su enlace y compra más
-    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "2", "metodo": "mano"})
+    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "2", "pago": "mano:1"})
+    assert "a <b>Marta</b>" in pub.get(enlace.split("?")[0]).text
     assert "/mi/" + token in r.headers["Location"]
     # la portada lo reconoce por cookie
     assert "Hola, <b>María José" in pub.get("/").text
 
     otro = app.test_client()
     t2 = _csrf(otro.get("/").text)
-    otro.post("/participar", data={"_csrf": t2, "nombre": "Luis", "cantidad": "1", "metodo": "mano"})
+    otro.post("/participar", data={"_csrf": t2, "nombre": "Luis", "cantidad": "1", "pago": "mano:0"})
+    # cambia de forma de pago
+    r = pub.post(f"/mi/{token}/cambiar-pago/1", data={"_csrf": tok, "pago": "bizum:0"})
+    assert "600 111 222" in pub.get(enlace.split("?")[0]).text
 
     # admin confirma
     c.post("/admin/login", data={"_csrf": tok if False else _csrf(c.get('/admin/login').text), "clave": "secreta"})
@@ -90,9 +95,12 @@ def test_flujo_completo():
     r = c.get("/admin/papeletas.pdf")
     assert r.status_code == 200 and r.data[:4] == b"%PDF"
     open(os.path.join(tmp, "papeletas.pdf"), "wb").write(r.data)
-    r = c.get("/premios.pdf")
+    assert "no-store" in r.headers["Cache-Control"] and "papeletas-" in r.headers["Content-Disposition"]
+    r = c.get("/admin/lotes.pdf")
     assert r.data[:4] == b"%PDF"
-    open(os.path.join(tmp, "premios.pdf"), "wb").write(r.data)
+    open(os.path.join(tmp, "lotes.pdf"), "wb").write(r.data)
+    r = c.get("/admin")
+    assert "¿Quién tiene el dinero?" in r.text and "Marta" in r.text
 
     # sorteo y publicación
     c.post("/admin/sorteo", data={"_csrf": tok, "accion": "ganadores", "ganador_1": "1"})
@@ -103,7 +111,7 @@ def test_flujo_completo():
 
     # cierre
     c.post("/admin/ajustes", data={"_csrf": tok, "accion": "estado", "valor": "cerrada"})
-    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "1", "metodo": "mano"})
+    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "1", "pago": "mano:0"})
     assert "cerrada" in pub.get("/").text
     assert "csv" in c.get("/admin/exportar.csv").headers["Content-Type"]
     assert pub.get("/admin").status_code == 302

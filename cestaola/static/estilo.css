@@ -155,6 +155,9 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--o
 .opcion label .ico { font-size: 1.5rem; }
 .opcion input:checked + label { border-color: var(--vino); background: #fff6f4; box-shadow: 0 0 0 3px rgba(123,30,44,.12); }
 .opcion input:focus-visible + label { box-shadow: 0 0 0 4px rgba(196,154,69,.35); }
+.fila-receptor { grid-template-columns: 1fr 1fr !important; gap: 8px; margin-bottom: 10px; }
+.cambiar-pago { display: flex; gap: 6px; align-items: center; }
+.cambiar-pago select { max-width: 190px; }
 .trampa { position: absolute; left: -9999px; }
 
 /* ---------- botones ---------- */
@@ -251,7 +254,6 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .ticket .der { border-left: 0; border-top: 2px dashed rgba(255,255,255,.35); }
   .ticket .der::before, .ticket .der::after { display: none; }
   .opcion label { padding: 12px; }
-  .opcion label .peq { display: none; }
   .tarjetas-movil thead { display: none; }
   .tarjetas-movil tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
   .tarjetas-movil td { border: 0; padding: 0; }

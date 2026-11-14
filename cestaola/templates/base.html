@@ -8,7 +8,7 @@
   <meta property="og:title" content="{{ aj.titulo }}">
   <meta property="og:description" content="Elige tus papeletas y participa en el sorteo de la cesta.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧺</text></svg>">
-  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v=2">
 </head>
 <body>
   {% if es_admin %}
@@ -37,6 +37,6 @@
     {{ aj.titulo }} · cuentas claras, amigos eternos ✦
     {% if not es_admin %}· <a href="{{ url_for('admin_login') }}">admin</a>{% endif %}
   </footer>
-  <script src="{{ url_for('static', filename='app.js') }}?v=1"></script>
+  <script src="{{ url_for('static', filename='app.js') }}?v=2"></script>
 </body>
 </html>

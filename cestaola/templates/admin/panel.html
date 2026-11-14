@@ -22,17 +22,37 @@
   </div>
 
   <div class="botones" style="margin-bottom:22px">
-    <a class="btn oro" href="{{ url_for('admin_papeletas') }}" target="_blank">🖨️ Papeletas para la bolsa (PDF)</a>
-    <a class="btn sec" href="{{ url_for('premios_pdf') }}" target="_blank">📄 Lotes (PDF)</a>
+    <a class="btn oro" href="{{ url_for('admin_papeletas', t=ahora()) }}" target="_blank">🖨️ Papeletas para la bolsa (PDF)</a>
+    <a class="btn sec" href="{{ url_for('admin_lotes_pdf', t=ahora()) }}" target="_blank">✉️ Lotes para sobres (PDF)</a>
     <a class="btn sec" href="{{ url_for('admin_csv') }}">⬇️ Exportar CSV</a>
   </div>
+
+  {% if receptores %}
+  <div class="tarjeta" style="margin-bottom:18px">
+    <h3>¿Quién tiene el dinero?</h3>
+    <div class="tabla-env"><table class="tabla">
+      <thead><tr><th>Organizador</th><th class="num">Cobrado</th><th class="num">Por cobrar</th></tr></thead>
+      <tbody>
+      {% for r in receptores %}
+      {% set clave = r.metodo ~ '|' ~ r.receptor %}
+      <tr>
+        <td><a href="{{ url_for('admin', estado=filtro, quien=clave) }}" style="text-decoration:none">{{ '📱 Bizum' if r.metodo == 'bizum' else '💶 Mano' }} · <b>{{ r.receptor or 'sin indicar' }}</b></a></td>
+        <td class="num">{{ r.confirmado|euros }}</td>
+        <td class="num">{% if r.pendiente %}{{ r.pendiente|euros }} <span class="muted peq">({{ r.n_pend }})</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  {% endif %}
 
   <div class="tarjeta">
     <nav class="pestanas">
       {% for k, t in [('pendiente','⏳ Pendientes'),('confirmado','✓ Confirmados'),('rechazado','Anulados'),('todas','Todos')] %}
-      <a href="{{ url_for('admin', estado=k) }}" class="{{ 'activo' if filtro == k }}">{{ t }}</a>
+      <a href="{{ url_for('admin', estado=k, quien=quien) }}" class="{{ 'activo' if filtro == k }}">{{ t }}</a>
       {% endfor %}
     </nav>
+    {% if quien %}<p class="peq">Mostrando solo <b>{{ quien.replace('|', ' a ').replace('bizum', 'Bizum').replace('mano', 'en mano') }}</b> · <a href="{{ url_for('admin', estado=filtro) }}">ver todos</a></p>{% endif %}
     <div class="tabla-env">
       <table class="tabla tarjetas-movil">
         <thead><tr><th>Concepto · nombre</th><th class="num">Papeletas</th><th class="num">Importe</th><th>Pago</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
@@ -42,11 +62,11 @@
           <td class="principal"><b>{{ concepto(c.id) }}</b> · {{ c.nombre }}{% if c.nota %}<div class="muted peq">{{ c.nota }}</div>{% endif %}</td>
           <td class="num">{{ c.cantidad }} pap.</td>
           <td class="num">{{ (c.cantidad * c.precio_cent)|euros }}</td>
-          <td>{{ '📱 Bizum' if c.metodo == 'bizum' else '💶 Mano' }}</td>
+          <td>{{ '📱' if c.metodo == 'bizum' else '💶' }} {{ c.receptor or ('Bizum' if c.metodo == 'bizum' else 'Mano') }}</td>
           <td class="muted peq">{{ c.creado[5:16] }}</td>
           <td><span class="estado {{ c.estado }}">{{ c.estado }}</span></td>
           <td class="acciones" style="white-space:nowrap">
-            {% set volver = url_for('admin', estado=filtro) %}
+            {% set volver = url_for('admin', estado=filtro, quien=quien) %}
             {% if c.estado != 'confirmado' %}
             <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='confirmar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn verde peq">✓ Cobrado</button></form>
             {% else %}
@@ -91,7 +111,7 @@
         </div>
         <div class="campo">
           <label for="met-manual">Pago</label>
-          <select id="met-manual" name="metodo"><option value="mano">En mano</option><option value="bizum">Bizum</option></select>
+          <select id="met-manual" name="pago">{% for o in aj.opciones_pago|reverse %}<option value="{{ o.clave }}">{{ 'En mano' if o.metodo == 'mano' else 'Bizum' }}{% if o.nombre %} a {{ o.nombre }}{% endif %}</option>{% endfor %}</select>
         </div>
       </div>
       <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:14px"><input type="checkbox" name="confirmada" value="1" checked> Ya está cobrado</label>

@@ -1,7 +1,6 @@
 """Generación de PDFs: papeletas para la bolsa y cartel de lotes."""
 import io
 import os
-from datetime import datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -9,14 +8,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
-from reportlab.platypus import (BaseDocTemplate, Frame, Image, KeepTogether, PageTemplate,
-                                Paragraph, Spacer, Table, TableStyle)
+from reportlab.platypus import Paragraph
 from xml.sax.saxutils import escape
-
-
-def _euros(cent):
-    from . import euros
-    return euros(cent)
 
 
 VINO = colors.HexColor("#7b1e2c")
@@ -145,150 +138,101 @@ def pdf_papeletas(aj, personas):
     return buf.getvalue()
 
 
-def _fondo_premios(aj):
-    """Banda de cabecera granate con título y pie con adorno, en cada página."""
-    def pintar(c, doc):
-        w, h = A4
-        c.saveState()
-        c.setFillColor(CREMA)
-        c.rect(0, 0, w, h, stroke=0, fill=1)
-        if doc.page == 1:
-            c.setFillColor(VINO)
-            c.rect(0, h - 48 * mm, w, 48 * mm, stroke=0, fill=1)
-            # festón
-            c.setFillColor(CREMA)
-            r = 4 * mm
-            xx = 0
-            while xx < w + r:
-                c.circle(xx, h - 48 * mm, r, stroke=0, fill=1)
-                xx += 2 * r
-            c.setFillColor(ORO)
-            c.setFont("Helvetica-Bold", 8.5)
-            c.drawString(15 * mm, h - 15 * mm, "L O T E S   D E L   S O R T E O")
-            c.setFillColor(colors.HexColor("#fff6e6"))
-            c.setFont("Times-Bold", 28)
-            c.drawString(15 * mm, h - 28 * mm, aj["titulo"][:42])
-            if aj.get("fecha_sorteo"):
-                c.setFont("Helvetica", 10)
-                c.setFillColor(colors.HexColor("#f1e2bd"))
-                c.drawString(15 * mm, h - 36 * mm, "Sorteo: " + aj["fecha_sorteo"][:70])
-        else:
-            c.setFillColor(VINO)
-            c.rect(0, h - 6 * mm, w, 6 * mm, stroke=0, fill=1)
-        c.setStrokeColor(ORO)
-        c.setLineWidth(0.6)
-        c.line(15 * mm, 11 * mm, w - 15 * mm, 11 * mm)
-        c.setFont("Times-Italic", 8.5)
-        c.setFillColor(colors.HexColor("#7b675d"))
-        c.drawString(15 * mm, 7 * mm, "Cuentas claras, amigos eternos")
-        c.drawRightString(w - 15 * mm, 7 * mm, f"Página {doc.page}")
-        c.restoreState()
-    return pintar
+def _foto_recortada(ruta, w, h):
+    """Devuelve un ImageReader con la foto recortada a la proporción w:h (centrada)."""
+    from PIL import Image as PILImage
+    from reportlab.lib.utils import ImageReader
+    im = PILImage.open(ruta)
+    iw, ih = im.size
+    objetivo = w / h
+    if iw / ih > objetivo:
+        nw = int(ih * objetivo); x0 = (iw - nw) // 2; im = im.crop((x0, 0, x0 + nw, ih))
+    else:
+        nh = int(iw / objetivo); y0 = (ih - nh) // 2; im = im.crop((0, y0, iw, y0 + nh))
+    im.thumbnail((1400, 1400))
+    b = io.BytesIO()
+    im.convert("RGB").save(b, "JPEG", quality=88)
+    b.seek(0)
+    return ImageReader(b)
 
 
-def _sin_foto(w, h):
-    t = Table([[Paragraph("sin foto", ParagraphStyle("x", fontName="Times-Italic", fontSize=12,
-                                                      alignment=1, textColor=ORO))]],
-              colWidths=[w], rowHeights=[h])
-    t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f1e2bd")),
-                           ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
-    return t
-
-
-def pdf_premios(aj, premios, res, carpeta_fotos, mostrar_ganadores):
-    """Cartel/listado de lotes con foto, descripción, precio y (opcional) ganador."""
+def pdf_lotes_sobres(aj, premios, carpeta_fotos):
+    """Una ficha por lote (foto + nombre + descripción), 3 por A4 vertical, para recortar
+    y meter en sobres. Sin precios ni premiados."""
     buf = io.BytesIO()
-    pintar = _fondo_premios(aj)
-    doc = BaseDocTemplate(buf, pagesize=A4, title=f"Lotes - {aj['titulo']}")
-    w, h = A4
-    doc.addPageTemplates([
-        PageTemplate(id="primera", onPage=pintar, autoNextPageTemplate="resto",
-                     frames=[Frame(15 * mm, 16 * mm, w - 30 * mm, h - 16 * mm - 58 * mm, id="f1")]),
-        PageTemplate(id="resto", onPage=pintar,
-                     frames=[Frame(15 * mm, 16 * mm, w - 30 * mm, h - 16 * mm - 14 * mm, id="f2")]),
-    ])
-    st_nom = ParagraphStyle("n", fontName="Times-Bold", fontSize=15, leading=18, textColor=TINTA)
-    st_desc = ParagraphStyle("d", fontName="Helvetica", fontSize=9.5, leading=13,
-                             textColor=colors.HexColor("#5a4a42"))
-    st_prec = ParagraphStyle("p", fontName="Helvetica-Bold", fontSize=13, leading=16, alignment=2, textColor=VINO)
-    st_gan = ParagraphStyle("g", fontName="Helvetica-Bold", fontSize=10.5, leading=14,
-                            textColor=colors.HexColor("#2e5a4c"))
-    st_h = ParagraphStyle("h", fontName="Times-Bold", fontSize=16, leading=20, textColor=VINO)
-    st_pie = ParagraphStyle("s", fontName="Helvetica", fontSize=8.5, leading=11,
-                            textColor=colors.HexColor("#7b675d"))
-
-    ancho_util = A4[0] - 30 * mm
-    foto_w, foto_h = 56 * mm, 42 * mm
-    el = []
-
-    def recorte(ruta):
-        """Recorta la foto a 4:3 (como en la web) para que todas queden iguales."""
-        from PIL import Image as PILImage
-        im = PILImage.open(ruta)
-        iw, ih = im.size
-        objetivo = foto_w / foto_h
-        if iw / ih > objetivo:
-            nw = int(ih * objetivo); x0 = (iw - nw) // 2; im = im.crop((x0, 0, x0 + nw, ih))
-        else:
-            nh = int(iw / objetivo); y0 = (ih - nh) // 2; im = im.crop((0, y0, iw, y0 + nh))
-        b = io.BytesIO()
-        im.convert("RGB").save(b, "JPEG", quality=88)
-        b.seek(0)
-        return Image(b, width=foto_w, height=foto_h)
-
-    for n, p in enumerate(premios, 1):
-        img = _sin_foto(foto_w, foto_h)
-        if p["foto"]:
-            ruta = os.path.join(carpeta_fotos, os.path.basename(p["foto"]))
-            if os.path.exists(ruta):
-                try:
-                    img = recorte(ruta)
-                except Exception:
-                    pass
-        texto = [Paragraph(f"<font color='#c49a45'>{n}.</font> {escape(p['nombre'])}", st_nom)]
-        if p["descripcion"]:
-            texto.append(Spacer(1, 2 * mm))
-            texto.append(Paragraph(escape(p["descripcion"]).replace("\n", "<br/>"), st_desc))
-        if mostrar_ganadores and p["ganador_nombre"]:
-            texto.append(Spacer(1, 3 * mm))
-            texto.append(Paragraph(f"Premiado/a: {escape(p['ganador_nombre'])}", st_gan))
-        t = Table([[img, texto, Paragraph(_euros(p["precio_cent"]), st_prec)]],
-                  colWidths=[foto_w + 6 * mm, ancho_util - foto_w - 6 * mm - 30 * mm, 30 * mm])
-        t.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#e7d9c4")),
-            ("TOPPADDING", (0, 0), (-1, -1), 4 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 4 * mm),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-            ("LEFTPADDING", (1, 0), (1, 0), 2 * mm),
-        ]))
-        el += [KeepTogether(t), Spacer(1, 4 * mm)]
-
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle(f"Lotes para sobres - {aj['titulo']}")
+    pw, ph = A4
+    alto = ph / 3
     if not premios:
-        el.append(Paragraph("Todavía no hay lotes.", st_desc))
+        c.setFont("Helvetica", 14)
+        c.drawCentredString(pw / 2, ph / 2, "Todavía no hay lotes.")
+        c.showPage(); c.save()
+        return buf.getvalue()
 
-    # Cuentas claras
-    balance = res["balance"]
-    filas = [
-        ["Valor real de los lotes", _euros(res["coste"])],
-        [f"Recaudado ({res['papeletas']} papeletas confirmadas)", _euros(res["recaudado"])],
-        ["Sobra" if balance >= 0 else "Falta para cubrir los lotes", _euros(abs(balance))],
-    ]
-    tc = Table(filas, colWidths=[ancho_util - 45 * mm, 45 * mm])
-    tc.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 11),
-        ("TEXTCOLOR", (1, -1), (1, -1), colors.HexColor("#2e5a4c") if balance >= 0 else colors.HexColor("#b3261e")),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("LINEABOVE", (0, -1), (-1, -1), 1, TINTA),
-        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#e7d9c4")),
-        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 4 * mm),
-    ]))
-    el.append(KeepTogether([Spacer(1, 4 * mm), Paragraph("Cuentas claras", st_h), Spacer(1, 3 * mm), tc,
-                            Spacer(1, 3 * mm),
-                            Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')}", st_pie)]))
-    doc.build(el)
+    st_desc = ParagraphStyle("d", fontName="Helvetica", fontSize=11, leading=14.5, textColor=colors.HexColor("#4a3b34"))
+    st_nom = ParagraphStyle("n", fontName="Times-Bold", fontSize=20, leading=23, textColor=TINTA)
+    total = len(premios)
+    for idx, p in enumerate(premios):
+        pos = idx % 3
+        if pos == 0 and idx:
+            c.showPage()
+        if pos == 0:
+            # Líneas de corte entre fichas y pie
+            c.setStrokeColor(colors.Color(0.6, 0.6, 0.6)); c.setLineWidth(0.4); c.setDash(3, 3)
+            c.line(0, alto, pw, alto); c.line(0, 2 * alto, pw, 2 * alto)
+            c.setDash()
+            c.setFont("Helvetica", 6.5); c.setFillColor(colors.grey)
+            c.drawCentredString(pw / 2, 2.5 * mm, f"{aj['titulo']} · lotes para sobres · hoja {idx // 3 + 1} de {(total - 1) // 3 + 1} · recorta por la línea discontinua")
+        y0 = ph - (pos + 1) * alto
+        m = 8 * mm
+        # Marco
+        c.setStrokeColor(VINO); c.setLineWidth(1)
+        c.roundRect(m, y0 + m, pw - 2 * m, alto - 2 * m, 3.5 * mm)
+        c.setStrokeColor(ORO); c.setLineWidth(0.35)
+        c.roundRect(m + 1.4 * mm, y0 + m + 1.4 * mm, pw - 2 * m - 2.8 * mm, alto - 2 * m - 2.8 * mm, 2.6 * mm)
+
+        # Foto (4:3) a la izquierda
+        pad = 6 * mm
+        fh = alto - 2 * m - 2 * pad
+        fw = fh * 4 / 3
+        fx, fy = m + pad, y0 + m + pad
+        ruta = os.path.join(carpeta_fotos, os.path.basename(p["foto"])) if p["foto"] else ""
+        if ruta and os.path.exists(ruta):
+            try:
+                c.drawImage(_foto_recortada(ruta, fw, fh), fx, fy, fw, fh)
+            except Exception:
+                ruta = ""
+        if not (ruta and os.path.exists(ruta)):
+            c.setFillColor(colors.HexColor("#f1e2bd")); c.rect(fx, fy, fw, fh, stroke=0, fill=1)
+            c.setFillColor(ORO); c.setFont("Times-Italic", 14)
+            c.drawCentredString(fx + fw / 2, fy + fh / 2 - 4, "sin foto")
+
+        # Texto a la derecha
+        tx = fx + fw + 7 * mm
+        tw = pw - m - pad - tx
+        ty = y0 + alto - m - pad
+        c.setFillColor(ORO); c.setFont("Helvetica-Bold", 8.5)
+        c.drawString(tx, ty - 8, f"L O T E   {idx + 1}")
+        _rombo(c, tx + stringWidth(f"L O T E   {idx + 1}", "Helvetica-Bold", 8.5) + 3 * mm, ty - 5.2, 1.3 * mm)
+        disponible = ty - 14 - (fy)
+        nom = Paragraph(escape(p["nombre"]), st_nom)
+        desc_txt = escape(p["descripcion"] or "").replace("\n", "<br/>")
+        # Reduce la letra hasta que quepa todo
+        for esc in (1, .92, .85, .78, .7, .62, .55):
+            sn = ParagraphStyle("n2", parent=st_nom, fontSize=st_nom.fontSize * min(1, esc + .1), leading=st_nom.leading * min(1, esc + .1))
+            sd = ParagraphStyle("d2", parent=st_desc, fontSize=st_desc.fontSize * esc, leading=st_desc.leading * esc)
+            nom = Paragraph(escape(p["nombre"]), sn)
+            _, hn = nom.wrap(tw, disponible)
+            desc = Paragraph(desc_txt, sd) if desc_txt else None
+            hd = desc.wrap(tw, disponible)[1] if desc else 0
+            if hn + 3 * mm + hd <= disponible:
+                break
+        yy = ty - 14 - 2 * mm - hn
+        nom.drawOn(c, tx, yy)
+        if desc:
+            yy -= 3 * mm + hd
+            desc.drawOn(c, tx, yy)
+    c.showPage()
+    c.save()
     return buf.getvalue()

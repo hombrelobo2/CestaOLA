@@ -29,18 +29,19 @@
   </div>
 
   <div class="campo">
-    <label>¿Cómo pagas?</label>
+    <label>¿Cómo y a quién pagas?</label>
     <div class="opciones">
-      {% if aj.bizum_telefono %}
+      {% set suf = 'm' if persona else 'n' %}
+      {% for o in aj.opciones_pago %}
       <div class="opcion">
-        <input type="radio" name="metodo" value="bizum" id="m-bizum-{{ 'm' if persona else 'n' }}" checked>
-        <label for="m-bizum-{{ 'm' if persona else 'n' }}"><span class="ico">📱</span><b>Bizum</b><span class="muted peq">Te damos el teléfono y el concepto al momento</span></label>
+        <input type="radio" name="pago" value="{{ o.clave }}" id="p-{{ suf }}-{{ loop.index }}" {{ 'checked' if loop.first }} required>
+        <label for="p-{{ suf }}-{{ loop.index }}">
+          <span class="ico">{{ '📱' if o.metodo == 'bizum' else '💶' }}</span>
+          <b>{{ 'Bizum' if o.metodo == 'bizum' else 'En mano' }}{% if o.nombre %} a {{ o.nombre }}{% endif %}</b>
+          <span class="muted peq">{% if o.metodo == 'bizum' %}{{ o.tel }}{% elif o.nombre %}Se lo das en persona{% else %}Se lo das a un organizador{% endif %}</span>
+        </label>
       </div>
-      {% endif %}
-      <div class="opcion">
-        <input type="radio" name="metodo" value="mano" id="m-mano-{{ 'm' if persona else 'n' }}" {{ 'checked' if not aj.bizum_telefono }}>
-        <label for="m-mano-{{ 'm' if persona else 'n' }}"><span class="ico">💶</span><b>En mano</b><span class="muted peq">Se lo das a un organizador</span></label>
-      </div>
+      {% endfor %}
     </div>
   </div>
 

@@ -23,7 +23,6 @@
 <section>
   <div class="titulo-seccion">
     <h2>Los lotes</h2>
-    {% if premios %}<a class="btn sec peq" href="{{ url_for('premios_pdf') }}" target="_blank">📄 Descargar PDF</a>{% endif %}
   </div>
   {% with mostrar_ganadores = aj.publicar_ganadores %}{% include "_lotes.html" %}{% endwith %}
 </section>

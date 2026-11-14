@@ -35,18 +35,23 @@
       </div>
     </div>
 
-    <h3 style="margin-top:10px"><span style="color:#05c3b6; font-weight:800">bizum</span></h3>
-    <div class="dos-col">
-      <div class="campo">
-        <label for="bizum_telefono">Teléfono que recibe los Bizum</label>
-        <input type="tel" id="bizum_telefono" name="bizum_telefono" maxlength="20" value="{{ aj.bizum_telefono }}" placeholder="600 123 456">
-        <div class="ayuda">Si lo dejas vacío, solo se ofrece el pago en mano.</div>
-      </div>
-      <div class="campo">
-        <label for="bizum_titular">Nombre del titular</label>
-        <input type="text" id="bizum_titular" name="bizum_titular" maxlength="80" value="{{ aj.bizum_titular }}" placeholder="Opcional">
-      </div>
+    <h3 style="margin-top:10px">📱 Quién recibe <span style="color:#05c3b6; font-weight:800">bizum</span></h3>
+    <p class="ayuda" style="margin-top:-4px">Cada participante elige a quién se lo envía. Deja vacías las filas que no uses.</p>
+    {% for b in aj.bizum + [{}, {}] %}
+    <div class="dos-col fila-receptor">
+      <input type="text" name="bizum_nombre" maxlength="40" value="{{ b.nombre or '' }}" placeholder="Nombre (ej. Ana)" aria-label="Nombre">
+      <input type="tel" name="bizum_tel" maxlength="20" value="{{ b.tel or '' }}" placeholder="Teléfono (600 123 456)" aria-label="Teléfono">
     </div>
+    {% endfor %}
+
+    <h3 style="margin-top:22px">💶 Quién recoge el dinero en mano</h3>
+    <p class="ayuda" style="margin-top:-4px">Solo el nombre. Si no pones a nadie, aparece "En mano" sin más.</p>
+    <div class="dos-col">
+    {% for m in aj.mano + [{}, {}] %}
+      <input type="text" name="mano_nombre" maxlength="40" value="{{ m.nombre or '' }}" placeholder="Nombre (ej. Luis)" aria-label="Nombre" style="margin-bottom:10px">
+    {% endfor %}
+    </div>
+    <div style="height:14px"></div>
     <button class="btn">Guardar ajustes</button>
   </form>
 </section>

@@ -12,8 +12,8 @@
   {% endif %}
 
   <div class="botones" style="margin:6px 0 20px">
-    <a class="btn oro" href="{{ url_for('admin_papeletas') }}" target="_blank">🖨️ Imprimir papeletas (10×5 cm)</a>
-    <a class="btn sec" href="{{ url_for('premios_pdf') }}" target="_blank">📄 PDF de lotes con premiados</a>
+    <a class="btn oro" href="{{ url_for('admin_papeletas', t=ahora()) }}" target="_blank">🖨️ Imprimir papeletas (10×5 cm)</a>
+    <a class="btn sec" href="{{ url_for('admin_lotes_pdf', t=ahora()) }}" target="_blank">✉️ Lotes para sobres (PDF)</a>
   </div>
 
   <form method="post" class="tarjeta">

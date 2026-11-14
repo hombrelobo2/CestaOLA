@@ -5,7 +5,7 @@
   <div class="titulo-seccion">
     <h2>Lotes</h2>
     <div class="botones">
-      <a class="btn sec peq" href="{{ url_for('premios_pdf') }}" target="_blank">📄 PDF</a>
+      <a class="btn sec peq" href="{{ url_for('admin_lotes_pdf', t=ahora()) }}" target="_blank">✉️ PDF para sobres</a>
       <a class="btn peq" href="{{ url_for('admin_premio') }}">➕ Nuevo lote</a>
     </div>
   </div>

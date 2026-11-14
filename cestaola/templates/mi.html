@@ -29,15 +29,15 @@
 </section>
 
 {% set pendientes_bizum = compras|selectattr('estado','equalto','pendiente')|selectattr('metodo','equalto','bizum')|list %}
-{% if pendientes_bizum and aj.bizum_telefono %}
+{% if pendientes_bizum %}
 <section>
   {% for c in pendientes_bizum %}
   <div class="tarjeta bizum" style="margin-bottom:14px">
-    <h3><span class="logo">bizum</span> · paga {{ (c.cantidad * c.precio_cent)|euros }}</h3>
+    <h3><span class="logo">bizum</span> · {{ (c.cantidad * c.precio_cent)|euros }} a {{ c.receptor }}</h3>
     <p class="muted peq">Abre la app de tu banco, entra en Bizum → Enviar dinero y usa estos datos:</p>
     <div class="datos-pago">
-      <div class="dato"><div><small>Teléfono{% if aj.bizum_titular %} ({{ aj.bizum_titular }}){% endif %}</small><b>{{ aj.bizum_telefono }}</b></div>
-        <button class="btn sec peq copiar" type="button" data-copiar="{{ aj.bizum_telefono|replace(' ','') }}">Copiar</button></div>
+      <div class="dato"><div><small>Teléfono de {{ c.receptor }}</small><b>{{ c.receptor_tel }}</b></div>
+        <button class="btn sec peq copiar" type="button" data-copiar="{{ c.receptor_tel|replace(' ','') }}">Copiar</button></div>
       <div class="dato"><div><small>Importe</small><b>{{ (c.cantidad * c.precio_cent)|euros }}</b></div>
         <button class="btn sec peq copiar" type="button" data-copiar="{{ '%.2f'|format(c.cantidad * c.precio_cent / 100)|replace('.', ',') }}">Copiar</button></div>
       <div class="dato"><div><small>Concepto (¡importante!)</small><b>{{ concepto(c.id) }}</b></div>
@@ -54,7 +54,8 @@
 {% set t = namespace(n=0, cent=0) %}
 {% for c in pendientes_mano %}{% set t.n = t.n + c.cantidad %}{% set t.cent = t.cent + c.cantidad * c.precio_cent %}{% endfor %}
 <div class="aviso info">💶 Tienes <b>{{ t.n }}</b> papeleta{{ 's' if t.n != 1 }} para pagar en mano: <b>{{ t.cent|euros }}</b>.
-  Entrega el dinero a un organizador y dile tu nombre.</div>
+  {% set quienes = pendientes_mano|map(attribute='receptor')|select|unique|list %}
+  Entrega el dinero {% if quienes %}a <b>{{ quienes|join(' / ') }}</b>{% else %}a un organizador{% endif %} y dile tu nombre.</div>
 {% endif %}
 
 <section>
@@ -77,14 +78,16 @@
       <li {% if nueva == c.id %}style="background:#fffbea; margin:0 -12px; padding-inline:12px; border-radius:10px"{% endif %}>
         <div class="que">
           <b>{{ c.cantidad }} papeleta{{ 's' if c.cantidad != 1 }}</b> · {{ (c.cantidad * c.precio_cent)|euros }}
-          <div class="muted peq">{{ concepto(c.id) }} · {{ '📱 Bizum' if c.metodo == 'bizum' else '💶 En mano' }} · {{ c.creado[:16] }}</div>
+          <div class="muted peq">{{ concepto(c.id) }} · {{ '📱 Bizum' if c.metodo == 'bizum' else '💶 En mano' }}{% if c.receptor %} a {{ c.receptor }}{% endif %} · {{ c.creado[:16] }}</div>
         </div>
         <span class="estado {{ c.estado }}">{{ {'pendiente':'Pendiente','confirmado':'Confirmado','rechazado':'Anulado'}[c.estado] }}</span>
-        {% if c.estado == 'pendiente' and aj.bizum_telefono %}
-        <form method="post" action="{{ url_for('cambiar_pago', token=persona.token, cid=c.id) }}">
+        {% if c.estado == 'pendiente' and aj.opciones_pago|length > 1 %}
+        <form method="post" action="{{ url_for('cambiar_pago', token=persona.token, cid=c.id) }}" class="cambiar-pago">
           <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-          <input type="hidden" name="metodo" value="{{ 'mano' if c.metodo == 'bizum' else 'bizum' }}">
-          <button class="btn fantasma peq" type="submit">Prefiero {{ 'en mano' if c.metodo == 'bizum' else 'Bizum' }}</button>
+          <select name="pago" aria-label="Cambiar forma de pago" class="inline-input">
+            {% for o in aj.opciones_pago %}<option value="{{ o.clave }}" {{ 'selected' if o.metodo == c.metodo and o.nombre == c.receptor }}>{{ 'Bizum' if o.metodo == 'bizum' else 'En mano' }}{% if o.nombre %} a {{ o.nombre }}{% endif %}</option>{% endfor %}
+          </select>
+          <button class="btn sec peq" type="submit">Cambiar</button>
         </form>
         {% endif %}
       </li>

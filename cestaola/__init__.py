@@ -2,6 +2,7 @@
 import csv
 import hmac
 import io
+import json
 import os
 import secrets
 import uuid
@@ -97,6 +98,7 @@ def create_app(test_config=None):
         return f"{g.aj['prefijo']}-{compra_id:04d}"
 
     app.jinja_env.globals["concepto"] = concepto
+    app.jinja_env.globals["ahora"] = lambda: datetime.now().strftime("%H%M%S")
 
     def solo_admin(f):
         @wraps(f)
@@ -161,7 +163,7 @@ def create_app(test_config=None):
         token = request.form.get("token", "")
         persona = D.persona_por_token(token) if token else None
         nombre = " ".join((request.form.get("nombre") or "").split())[:60]
-        metodo = request.form.get("metodo")
+        pago = D.opcion_pago(aj, request.form.get("pago", ""))
         try:
             cantidad = int(request.form.get("cantidad", "0"))
         except ValueError:
@@ -173,11 +175,9 @@ def create_app(test_config=None):
         if cantidad < 1 or cantidad > aj["max_por_compra"]:
             flash(f"Elige entre 1 y {aj['max_por_compra']} papeletas.", "error")
             return redirect(destino + "#participar")
-        if metodo not in ("bizum", "mano"):
-            flash("Elige cómo vas a pagar.", "error")
+        if not pago:
+            flash("Elige cómo y a quién vas a pagar.", "error")
             return redirect(destino + "#participar")
-        if metodo == "bizum" and not aj["bizum_telefono"]:
-            metodo = "mano"
         db = D.get_db()
         if not persona:
             token = D.nuevo_token()
@@ -186,8 +186,9 @@ def create_app(test_config=None):
         else:
             persona_id, token = persona["id"], persona["token"]
         cur = db.execute(
-            "INSERT INTO compras (persona_id, cantidad, precio_cent, metodo) VALUES (?, ?, ?, ?)",
-            (persona_id, cantidad, aj["precio_cent"], metodo))
+            "INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, receptor, receptor_tel) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (persona_id, cantidad, aj["precio_cent"], pago["metodo"], pago["nombre"], pago["tel"]))
         db.commit()
         resp = make_response(redirect(url_for("mi", token=token, nueva=cur.lastrowid)))
         resp.set_cookie(COOKIE, token, max_age=3600 * 24 * 400, httponly=True, samesite="Lax",
@@ -218,12 +219,14 @@ def create_app(test_config=None):
         persona = D.persona_por_token(token)
         if not persona:
             abort(404)
-        metodo = request.form.get("metodo")
-        if metodo in ("bizum", "mano"):
+        pago = D.opcion_pago(D.ajustes(), request.form.get("pago", ""))
+        if pago:
             D.get_db().execute(
-                "UPDATE compras SET metodo=? WHERE id=? AND persona_id=? AND estado='pendiente'",
-                (metodo, cid, persona["id"]))
+                "UPDATE compras SET metodo=?, receptor=?, receptor_tel=? "
+                "WHERE id=? AND persona_id=? AND estado='pendiente'",
+                (pago["metodo"], pago["nombre"], pago["tel"], cid, persona["id"]))
             D.get_db().commit()
+            flash("Forma de pago cambiada.", "ok")
         return redirect(url_for("mi", token=token))
 
     @app.get("/olvidar")
@@ -237,14 +240,6 @@ def create_app(test_config=None):
         return send_from_directory(os.path.join(app.config["DATA_DIR"], "fotos"),
                                    os.path.basename(nombre), max_age=86400 * 30)
 
-    @app.get("/premios.pdf")
-    def premios_pdf():
-        aj = D.ajustes()
-        mostrar = aj["publicar_ganadores"] or session.get("admin")
-        datos = pdfs.pdf_premios(aj, D.premios(), D.resumen(),
-                                 os.path.join(app.config["DATA_DIR"], "fotos"), mostrar)
-        return Response(datos, mimetype="application/pdf",
-                        headers={"Content-Disposition": "inline; filename=premios.pdf"})
 
     # ---------------------------------------------------------------- admin
     @app.route("/admin/login", methods=["GET", "POST"])
@@ -271,11 +266,16 @@ def create_app(test_config=None):
     @solo_admin
     def admin():
         filtro = request.args.get("estado", "pendiente")
-        sql = ("SELECT c.*, pe.nombre, pe.token FROM compras c JOIN personas pe ON pe.id=c.persona_id ")
-        args = ()
+        quien = request.args.get("quien")   # "bizum|Ana" o "mano|Luis"
+        sql = ("SELECT c.*, pe.nombre, pe.token FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE 1=1 ")
+        args = []
         if filtro in ("pendiente", "confirmado", "rechazado"):
-            sql += "WHERE c.estado=? "
-            args = (filtro,)
+            sql += "AND c.estado=? "
+            args.append(filtro)
+        if quien and "|" in quien:
+            m, r = quien.split("|", 1)
+            sql += "AND c.metodo=? AND c.receptor=? "
+            args += [m, r]
         sql += "ORDER BY c.id DESC"
         compras = D.get_db().execute(sql, args).fetchall()
         personas = D.personas_con_totales()
@@ -286,8 +286,9 @@ def create_app(test_config=None):
             if k in vistos:
                 repetidos.add(k)
             vistos[k] = True
-        return render_template("admin/panel.html", compras=compras, filtro=filtro,
-                               res=D.resumen(), personas=personas, repetidos=repetidos)
+        return render_template("admin/panel.html", compras=compras, filtro=filtro, quien=quien,
+                               res=D.resumen(), personas=personas, repetidos=repetidos,
+                               receptores=D.por_receptor())
 
     @app.post("/admin/compra/<int:cid>/<accion>")
     @solo_admin
@@ -322,7 +323,7 @@ def create_app(test_config=None):
             cantidad = 0
         pid = request.form.get("persona_id", type=int)
         nombre = " ".join((request.form.get("nombre") or "").split())[:60]
-        metodo = request.form.get("metodo") if request.form.get("metodo") in ("bizum", "mano") else "mano"
+        pago = D.opcion_pago(aj, request.form.get("pago", "")) or aj["opciones_pago"][-1]
         if cantidad < 1 or (not pid and len(nombre) < 2):
             flash("Indica nombre (o persona existente) y número de papeletas.", "error")
             return redirect(url_for("admin"))
@@ -330,9 +331,9 @@ def create_app(test_config=None):
             pid = db.execute("INSERT INTO personas (nombre, token) VALUES (?, ?)",
                              (nombre, D.nuevo_token())).lastrowid
         estado = "confirmado" if request.form.get("confirmada") else "pendiente"
-        db.execute("INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, estado, confirmado, nota) "
-                   "VALUES (?, ?, ?, ?, ?, ?, 'alta manual')",
-                   (pid, cantidad, aj["precio_cent"], metodo, estado,
+        db.execute("INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, receptor, receptor_tel, "
+                   "estado, confirmado, nota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'alta manual')",
+                   (pid, cantidad, aj["precio_cent"], pago["metodo"], pago["nombre"], pago["tel"], estado,
                     datetime.now().strftime("%Y-%m-%d %H:%M") if estado == "confirmado" else None))
         db.commit()
         flash("Participación añadida.", "ok")
@@ -447,9 +448,18 @@ def create_app(test_config=None):
                 flash("Precio por papeleta no válido.", "error")
                 return redirect(url_for("admin_ajustes"))
             D.guardar_ajuste("precio_cent", precio)
-            for k, lim in (("titulo", 120), ("texto", 2000), ("bizum_telefono", 20),
-                           ("bizum_titular", 80), ("fecha_sorteo", 80)):
+            for k, lim in (("titulo", 120), ("texto", 2000), ("fecha_sorteo", 80)):
                 D.guardar_ajuste(k, (request.form.get(k) or "").strip()[:lim])
+            bizum = []
+            for n, t in zip(request.form.getlist("bizum_nombre"), request.form.getlist("bizum_tel")):
+                n, t = " ".join(n.split())[:40], " ".join(t.split())[:20]
+                if n and t:
+                    bizum.append({"nombre": n, "tel": t})
+                elif n or t:
+                    flash("Cada Bizum necesita nombre y teléfono; se ha ignorado una fila incompleta.", "error")
+            mano = [{"nombre": " ".join(n.split())[:40]} for n in request.form.getlist("mano_nombre") if n.strip()]
+            D.guardar_ajuste("bizum", json.dumps(bizum, ensure_ascii=False))
+            D.guardar_ajuste("mano", json.dumps(mano, ensure_ascii=False))
             prefijo = "".join(ch for ch in (request.form.get("prefijo") or "CESTA").upper() if ch.isalnum())[:10]
             D.guardar_ajuste("prefijo", prefijo or "CESTA")
             D.guardar_ajuste("max_por_compra", max(1, min(500, request.form.get("max_por_compra", type=int) or 50)))
@@ -458,27 +468,41 @@ def create_app(test_config=None):
             return redirect(url_for("admin_ajustes"))
         return render_template("admin/ajustes.html")
 
+    def enviar_pdf(datos, nombre):
+        """Sin caché y con nombre único: los visores de PDF del móvil reabren
+        el archivo antiguo si se descarga dos veces con el mismo nombre."""
+        fichero = f"{nombre}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+        return Response(datos, mimetype="application/pdf", headers={
+            "Content-Disposition": f"inline; filename={fichero}",
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+        })
+
     @app.get("/admin/papeletas.pdf")
     @solo_admin
     def admin_papeletas():
         personas = [p for p in D.personas_con_totales() if p["confirmadas"] > 0]
-        datos = pdfs.pdf_papeletas(D.ajustes(), personas)
-        return Response(datos, mimetype="application/pdf",
-                        headers={"Content-Disposition": "inline; filename=papeletas.pdf"})
+        return enviar_pdf(pdfs.pdf_papeletas(D.ajustes(), personas), "papeletas")
+
+    @app.get("/admin/lotes.pdf")
+    @solo_admin
+    def admin_lotes_pdf():
+        return enviar_pdf(pdfs.pdf_lotes_sobres(D.ajustes(), D.premios(),
+                                                os.path.join(app.config["DATA_DIR"], "fotos")), "lotes-sobres")
 
     @app.get("/admin/exportar.csv")
     @solo_admin
     def admin_csv():
         rows = D.get_db().execute(
             "SELECT c.id, pe.nombre, c.cantidad, c.precio_cent, c.metodo, c.estado, c.creado, "
-            "c.confirmado, c.nota FROM compras c JOIN personas pe ON pe.id=c.persona_id ORDER BY c.id").fetchall()
+            "c.confirmado, c.nota, c.receptor FROM compras c JOIN personas pe ON pe.id=c.persona_id ORDER BY c.id").fetchall()
         out = io.StringIO()
         w = csv.writer(out, delimiter=";")
-        w.writerow(["concepto", "nombre", "papeletas", "importe", "pago", "estado", "fecha", "confirmado", "nota"])
+        w.writerow(["concepto", "nombre", "papeletas", "importe", "pago", "a quien", "estado", "fecha", "confirmado", "nota"])
         for r in rows:
             w.writerow([concepto(r["id"]), r["nombre"], r["cantidad"],
                         f"{r['cantidad'] * r['precio_cent'] / 100:.2f}".replace(".", ","),
-                        r["metodo"], r["estado"], r["creado"], r["confirmado"] or "", r["nota"]])
+                        r["metodo"], r["receptor"], r["estado"], r["creado"], r["confirmado"] or "", r["nota"]])
         return Response("﻿" + out.getvalue(), mimetype="text/csv",
                         headers={"Content-Disposition": "attachment; filename=cestaola.csv"})
 
