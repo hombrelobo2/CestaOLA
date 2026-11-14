@@ -5,6 +5,8 @@
 #   git clone https://github.com/hombrelobo2/CestaOLA /opt/cestaola
 #   bash /opt/cestaola/deploy/install.sh
 set -euo pipefail
+# Evita avisos de "Setting locale failed" (el cliente SSH envía un idioma que el LXC no tiene)
+export LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=
 
 APP=/opt/cestaola
 DATA=/var/lib/cestaola
