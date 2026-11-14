@@ -1,0 +1,116 @@
+"""Prueba de extremo a extremo:  python -m pytest -q   (o  python tests/test_app.py)"""
+import io
+import os
+import re
+import sys
+import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from PIL import Image  # noqa: E402
+
+from cestaola import create_app  # noqa: E402
+
+
+def _csrf(html):
+    return re.search(r'name="_csrf" value="([^"]+)"', html).group(1)
+
+
+def _foto():
+    b = io.BytesIO()
+    Image.new("RGB", (1200, 900), (180, 40, 50)).save(b, "JPEG")
+    b.seek(0)
+    return b
+
+
+def test_flujo_completo():
+    tmp = tempfile.mkdtemp()
+    app = create_app({"DATA_DIR": tmp, "ADMIN_PASSWORD": "secreta", "SECRET_KEY": "x",
+                      "SESSION_COOKIE_SECURE": False, "TESTING": True})
+    c = app.test_client()
+
+    r = c.get("/")
+    assert r.status_code == 200
+    tok = _csrf(r.text)
+
+    # sin CSRF -> 400
+    assert c.post("/participar", data={"nombre": "X"}).status_code == 400
+
+    # login admin
+    assert c.post("/admin/login", data={"_csrf": tok, "clave": "mala"}).status_code == 200
+    r = c.post("/admin/login", data={"_csrf": tok, "clave": "secreta"})
+    assert r.status_code == 302
+    tok = _csrf(c.get("/admin").text)
+
+    # ajustes y lote con foto
+    r = c.post("/admin/ajustes", data={"_csrf": tok, "precio": "2,50", "titulo": "Cesta OLA 2026",
+                                        "texto": "Hola", "bizum_telefono": "600 111 222",
+                                        "bizum_titular": "Ana", "fecha_sorteo": "19 dic",
+                                        "prefijo": "ola", "max_por_compra": "40"})
+    assert r.status_code == 302
+    r = c.post("/admin/premios/nuevo", data={"_csrf": tok, "nombre": "Cesta ibérica",
+                                              "descripcion": "Jamón\nQueso", "precio": "85,90",
+                                              "foto": (_foto(), "cesta.jpg")},
+               content_type="multipart/form-data")
+    assert r.status_code == 302
+    c.post("/admin/premios/nuevo", data={"_csrf": tok, "nombre": "Vino", "precio": "20"})
+    assert len(os.listdir(os.path.join(tmp, "fotos"))) == 1
+    c.get("/admin/salir")
+
+    # compra pública con Bizum
+    pub = app.test_client()
+    tok = _csrf(pub.get("/").text)
+    r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega",
+                                     "cantidad": "3", "metodo": "bizum"})
+    assert r.status_code == 302
+    enlace = r.headers["Location"]
+    r = pub.get(enlace)
+    assert "OLA-0001" in r.text and "7,50 €" in r.text and "600 111 222" in r.text
+    token = re.search(r"/mi/([^?\"]+)", enlace).group(1)
+    # vuelve con su enlace y compra más
+    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "2", "metodo": "mano"})
+    assert "/mi/" + token in r.headers["Location"]
+    # la portada lo reconoce por cookie
+    assert "Hola, <b>María José" in pub.get("/").text
+
+    otro = app.test_client()
+    t2 = _csrf(otro.get("/").text)
+    otro.post("/participar", data={"_csrf": t2, "nombre": "Luis", "cantidad": "1", "metodo": "mano"})
+
+    # admin confirma
+    c.post("/admin/login", data={"_csrf": tok if False else _csrf(c.get('/admin/login').text), "clave": "secreta"})
+    tok = _csrf(c.get("/admin").text)
+    for cid in (1, 2, 3):
+        c.post(f"/admin/compra/{cid}/confirmar", data={"_csrf": tok})
+    r = c.get("/admin?estado=confirmado")
+    assert r.text.count("Deshacer") == 3
+    assert "15,00 €" in r.text  # 6 papeletas x 2,50
+
+    # PDFs
+    r = c.get("/admin/papeletas.pdf")
+    assert r.status_code == 200 and r.data[:4] == b"%PDF"
+    open(os.path.join(tmp, "papeletas.pdf"), "wb").write(r.data)
+    r = c.get("/premios.pdf")
+    assert r.data[:4] == b"%PDF"
+    open(os.path.join(tmp, "premios.pdf"), "wb").write(r.data)
+
+    # sorteo y publicación
+    c.post("/admin/sorteo", data={"_csrf": tok, "accion": "ganadores", "ganador_1": "1"})
+    c.post("/admin/sorteo", data={"_csrf": tok, "accion": "azar", "premio_id": "2"})
+    c.post("/admin/sorteo", data={"_csrf": tok, "accion": "publicar", "valor": "1"})
+    assert "Enhorabuena" in pub.get(enlace).text
+    assert "Ya tenemos premiados" in pub.get("/").text
+
+    # cierre
+    c.post("/admin/ajustes", data={"_csrf": tok, "accion": "estado", "valor": "cerrada"})
+    r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "1", "metodo": "mano"})
+    assert "cerrada" in pub.get("/").text
+    assert "csv" in c.get("/admin/exportar.csv").headers["Content-Type"]
+    assert pub.get("/admin").status_code == 302
+    assert pub.get("/admin/papeletas.pdf").status_code == 302
+    print("OK", tmp)
+    return tmp
+
+
+if __name__ == "__main__":
+    test_flujo_completo()

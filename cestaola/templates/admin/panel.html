@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block titulo %}Pagos · Panel{% endblock %}
+{% block contenido %}
+<section>
+  <div class="titulo-seccion">
+    <h2>Pagos y papeletas</h2>
+    <form method="post" action="{{ url_for('admin_ajustes') }}" {% if aj.abierta %}data-confirmar="¿Cerrar la venta? Nadie podrá reservar más papeletas (puedes reabrirla después)."{% endif %}>
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="accion" value="estado">
+      <input type="hidden" name="volver" value="{{ url_for('admin') }}">
+      <input type="hidden" name="valor" value="{{ 'cerrada' if aj.abierta else 'abierta' }}">
+      {% if aj.abierta %}<button class="btn sec peq">🔒 Cerrar la venta</button>
+      {% else %}<span class="estado rechazado">Venta cerrada</span> <button class="btn sec peq">🔓 Reabrir</button>{% endif %}
+    </form>
+  </div>
+
+  <div class="cifras" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom:16px">
+    <div class="cifra"><b>{{ res.recaudado|euros }}</b><span>confirmado · {{ res.papeletas }} papeletas</span></div>
+    <div class="cifra"><b style="color:#7a5a12">{{ res.pendiente|euros }}</b><span>pendiente · {{ res.papeletas_pend }} papeletas</span></div>
+    <div class="cifra"><b style="color:var(--tinta)">{{ res.coste|euros }}</b><span>valor de los lotes</span></div>
+    <div class="cifra"><b class="{{ 'positivo' if res.balance >= 0 else 'negativo' }}">{{ res.balance|euros }}</b><span>balance</span></div>
+  </div>
+
+  <div class="botones" style="margin-bottom:22px">
+    <a class="btn oro" href="{{ url_for('admin_papeletas') }}" target="_blank">🖨️ Papeletas para la bolsa (PDF)</a>
+    <a class="btn sec" href="{{ url_for('premios_pdf') }}" target="_blank">📄 Lotes (PDF)</a>
+    <a class="btn sec" href="{{ url_for('admin_csv') }}">⬇️ Exportar CSV</a>
+  </div>
+
+  <div class="tarjeta">
+    <nav class="pestanas">
+      {% for k, t in [('pendiente','⏳ Pendientes'),('confirmado','✓ Confirmados'),('rechazado','Anulados'),('todas','Todos')] %}
+      <a href="{{ url_for('admin', estado=k) }}" class="{{ 'activo' if filtro == k }}">{{ t }}</a>
+      {% endfor %}
+    </nav>
+    <div class="tabla-env">
+      <table class="tabla tarjetas-movil">
+        <thead><tr><th>Concepto · nombre</th><th class="num">Papeletas</th><th class="num">Importe</th><th>Pago</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+        {% for c in compras %}
+        <tr>
+          <td class="principal"><b>{{ concepto(c.id) }}</b> · {{ c.nombre }}{% if c.nota %}<div class="muted peq">{{ c.nota }}</div>{% endif %}</td>
+          <td class="num">{{ c.cantidad }} pap.</td>
+          <td class="num">{{ (c.cantidad * c.precio_cent)|euros }}</td>
+          <td>{{ '📱 Bizum' if c.metodo == 'bizum' else '💶 Mano' }}</td>
+          <td class="muted peq">{{ c.creado[5:16] }}</td>
+          <td><span class="estado {{ c.estado }}">{{ c.estado }}</span></td>
+          <td class="acciones" style="white-space:nowrap">
+            {% set volver = url_for('admin', estado=filtro) %}
+            {% if c.estado != 'confirmado' %}
+            <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='confirmar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn verde peq">✓ Cobrado</button></form>
+            {% else %}
+            <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='pendiente') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn sec peq">Deshacer</button></form>
+            {% endif %}
+            {% if c.estado != 'rechazado' %}
+            <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='rechazar') }}" data-confirmar="¿Anular {{ concepto(c.id) }} de {{ c.nombre }}?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn fantasma peq">Anular</button></form>
+            {% else %}
+            <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='borrar') }}" data-confirmar="¿Borrar definitivamente {{ concepto(c.id) }}?"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn fantasma peq">Borrar</button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="centro muted" style="padding:30px">Nada por aquí {{ '🎉' if filtro == 'pendiente' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <details class="tarjeta plegable">
+    <summary>➕ Añadir una participación a mano</summary>
+    <form method="post" action="{{ url_for('admin_compra_nueva') }}" style="margin-top:16px">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="dos-col">
+        <div class="campo">
+          <label for="persona_id">Persona existente</label>
+          <select id="persona_id" name="persona_id">
+            <option value="">— Nueva persona —</option>
+            {% for p in personas %}<option value="{{ p.id }}">{{ p.nombre }} ({{ p.confirmadas }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="nombre-nuevo">…o nombre nuevo</label>
+          <input type="text" id="nombre-nuevo" name="nombre" maxlength="60" placeholder="Nombre y apellido">
+        </div>
+        <div class="campo">
+          <label for="cant-manual">Papeletas</label>
+          <input type="number" id="cant-manual" name="cantidad" value="1" min="1" max="500">
+        </div>
+        <div class="campo">
+          <label for="met-manual">Pago</label>
+          <select id="met-manual" name="metodo"><option value="mano">En mano</option><option value="bizum">Bizum</option></select>
+        </div>
+      </div>
+      <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:14px"><input type="checkbox" name="confirmada" value="1" checked> Ya está cobrado</label>
+      <button class="btn">Añadir</button>
+    </form>
+  </details>
+</section>
+
+<section id="personas">
+  <div class="titulo-seccion"><h2>Participantes</h2><span class="muted peq">{{ personas|length }} personas</span></div>
+  <div class="tarjeta tabla-env">
+    <table class="tabla tarjetas-movil">
+      <thead><tr><th>Nombre (como sale en la papeleta)</th><th class="num">Bolsa</th><th class="num">Pendientes</th><th class="num">Pagado</th><th>Enlace</th><th></th></tr></thead>
+      <tbody>
+      {% for p in personas %}
+      <tr>
+        <td class="principal">
+          <form method="post" action="{{ url_for('admin_persona', pid=p.id) }}" style="display:flex; gap:6px; align-items:center">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="estado" value="{{ filtro }}">
+            <input type="text" name="nombre" value="{{ p.nombre }}" class="inline-input" maxlength="60" style="min-width:160px">
+            <button class="btn sec peq" title="Guardar nombre">💾</button>
+          </form>
+          {% if p.nombre.casefold() in repetidos %}<div class="repetido">⚠ Nombre repetido: ¿es la misma persona? Añade la inicial del apellido para distinguirlos.</div>{% endif %}
+        </td>
+        <td class="num"><b>{{ p.confirmadas }}</b> <span class="muted peq">en bolsa</span></td>
+        <td class="num">{% if p.pendientes %}{{ p.pendientes }} <span class="muted peq">pend.</span>{% endif %}</td>
+        <td class="num">{{ p.pagado_cent|euros }}</td>
+        <td><button class="btn sec peq" type="button" data-copiar="{{ request.url_root.rstrip('/') }}{{ url_for('mi', token=p.token) }}">Copiar</button></td>
+        <td>
+          <form method="post" action="{{ url_for('admin_persona', pid=p.id) }}" data-confirmar="¿Borrar a {{ p.nombre }} y todas sus compras?">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="borrar"><input type="hidden" name="estado" value="{{ filtro }}">
+            <button class="btn fantasma peq">Borrar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="centro muted" style="padding:30px">Aún no se ha apuntado nadie.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

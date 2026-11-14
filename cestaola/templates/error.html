@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Ups · {{ aj.titulo }}{% endblock %}
+{% block contenido %}
+<section style="max-width:520px; margin:60px auto">
+  <div class="tarjeta centro">
+    <div style="font-size:3rem">🧺</div>
+    <h2>{{ 'No encontrado' if codigo == 404 else 'Ups' }}</h2>
+    <p class="muted">{{ mensaje }}</p>
+    <a class="btn" href="{{ url_for('inicio') }}">Volver al inicio</a>
+  </div>
+</section>
+{% endblock %}

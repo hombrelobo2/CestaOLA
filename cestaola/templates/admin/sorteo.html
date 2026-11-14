@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}Sorteo · Panel{% endblock %}
+{% block contenido %}
+<section>
+  <div class="titulo-seccion">
+    <h2>El día del sorteo</h2>
+    <span class="muted peq">{{ res.papeletas }} papeletas en la bolsa · {{ personas|length }} participantes</span>
+  </div>
+
+  {% if aj.abierta %}
+  <div class="aviso info">La venta sigue abierta. Ciérrala desde <a href="{{ url_for('admin') }}">Pagos</a> antes de imprimir las papeletas para que no entren más.</div>
+  {% endif %}
+
+  <div class="botones" style="margin:6px 0 20px">
+    <a class="btn oro" href="{{ url_for('admin_papeletas') }}" target="_blank">🖨️ Imprimir papeletas (10×5 cm)</a>
+    <a class="btn sec" href="{{ url_for('premios_pdf') }}" target="_blank">📄 PDF de lotes con premiados</a>
+  </div>
+
+  <form method="post" class="tarjeta">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="accion" value="ganadores">
+    <p class="muted">Saca un nombre de la bolsa y apúntalo en su lote.</p>
+    <div class="tabla-env">
+    <table class="tabla">
+      <thead><tr><th></th><th>Lote</th><th>Premiado/a</th></tr></thead>
+      <tbody>
+      {% for p in premios %}
+      <tr>
+        <td>{% if p.foto %}<img class="miniatura" src="{{ url_for('foto', nombre=p.foto) }}" alt="">{% else %}<div class="miniatura" style="display:grid;place-items:center">🎁</div>{% endif %}</td>
+        <td><b>{{ loop.index }}. {{ p.nombre }}</b><div class="muted peq">{{ p.precio_cent|euros }}</div></td>
+        <td style="min-width:220px">
+          <select name="ganador_{{ p.id }}">
+            <option value="">— sin asignar —</option>
+            {% for pe in personas %}<option value="{{ pe.id }}" {{ 'selected' if p.ganador_id == pe.id }}>{{ pe.nombre }}</option>{% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="centro muted" style="padding:30px">No hay lotes todavía.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div style="margin-top:16px"><button class="btn">Guardar premiados</button></div>
+  </form>
+</section>
+
+<section>
+  <div class="dos-col">
+    <form method="post" class="tarjeta">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="accion" value="publicar">
+      <h3>{{ '✅ Premiados publicados' if aj.publicar_ganadores else 'Publicar premiados' }}</h3>
+      <p class="muted">{{ 'Todos los ven en la web y en el PDF de lotes.' if aj.publicar_ganadores else 'Cuando estén todos, publícalos para que se vean en la web.' }}</p>
+      <input type="hidden" name="valor" value="{{ '0' if aj.publicar_ganadores else '1' }}">
+      <button class="btn {{ 'sec' if aj.publicar_ganadores else 'verde' }}">{{ 'Ocultar de nuevo' if aj.publicar_ganadores else '📣 Publicar en la web' }}</button>
+    </form>
+
+    <form method="post" class="tarjeta" data-confirmar="¿Sacar una papeleta al azar para este lote? Sustituye al premiado actual.">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="accion" value="azar">
+      <h3>¿Sin bolsa? Sorteo digital</h3>
+      <p class="muted peq">Cada papeleta confirmada cuenta una vez, igual que en la bolsa.</p>
+      <div class="campo">
+        <select name="premio_id">{% for p in premios %}<option value="{{ p.id }}">{{ loop.index }}. {{ p.nombre }}</option>{% endfor %}</select>
+      </div>
+      <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:12px"><input type="checkbox" name="repetir" value="1"> Puede tocarle a quien ya tiene premio</label>
+      <button class="btn sec" {{ 'disabled' if not premios }}>🎲 Sacar papeleta</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Acceso organizadores{% endblock %}
+{% block contenido %}
+<section style="max-width:420px; margin:60px auto">
+  <form method="post" class="tarjeta">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="centro" style="font-size:2.6rem">🧺</div>
+    <h2 class="centro">Organizadores</h2>
+    <p class="muted centro">{{ aj.titulo }}</p>
+    <div class="campo">
+      <label for="clave">Contraseña</label>
+      <input type="password" id="clave" name="clave" autocomplete="current-password" required autofocus>
+    </div>
+    <button class="btn grande" type="submit">Entrar</button>
+  </form>
+</section>
+{% endblock %}

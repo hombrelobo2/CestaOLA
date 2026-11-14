@@ -1,0 +1,49 @@
+{# Formulario de compra. Si se pasa `persona`, compra más papeletas a su nombre. #}
+<form method="post" action="{{ url_for('participar') }}" class="tarjeta" id="participar">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="text" name="web" class="trampa" tabindex="-1" autocomplete="off" aria-hidden="true">
+  {% if persona %}
+    <input type="hidden" name="token" value="{{ persona.token }}">
+    <h3>Añadir más papeletas</h3>
+    <p class="muted">Se suman a las tuyas, a nombre de <b>{{ persona.nombre }}</b>.</p>
+  {% else %}
+    <h3>Quiero participar</h3>
+    <div class="campo">
+      <label for="nombre">Tu nombre</label>
+      <input type="text" id="nombre" name="nombre" required minlength="2" maxlength="60" autocomplete="name"
+             placeholder="Nombre y apellido">
+      <div class="ayuda">Así aparecerá en cada papeleta de la bolsa.</div>
+    </div>
+  {% endif %}
+
+  <div class="campo">
+    <label for="cantidad">Papeletas</label>
+    <div>
+      <span class="contador" data-contador data-precio="{{ aj.precio_cent }}" data-importe="#importe-{{ 'm' if persona else 'n' }}">
+        <button type="button" data-paso="-1" aria-label="Una menos">−</button>
+        <input type="number" id="cantidad" name="cantidad" value="1" min="1" max="{{ aj.max_por_compra }}" inputmode="numeric">
+        <button type="button" data-paso="1" aria-label="Una más">+</button>
+      </span>
+      <span class="importe" id="importe-{{ 'm' if persona else 'n' }}">{{ aj.precio_cent|euros }}</span>
+    </div>
+  </div>
+
+  <div class="campo">
+    <label>¿Cómo pagas?</label>
+    <div class="opciones">
+      {% if aj.bizum_telefono %}
+      <div class="opcion">
+        <input type="radio" name="metodo" value="bizum" id="m-bizum-{{ 'm' if persona else 'n' }}" checked>
+        <label for="m-bizum-{{ 'm' if persona else 'n' }}"><span class="ico">📱</span><b>Bizum</b><span class="muted peq">Te damos el teléfono y el concepto al momento</span></label>
+      </div>
+      {% endif %}
+      <div class="opcion">
+        <input type="radio" name="metodo" value="mano" id="m-mano-{{ 'm' if persona else 'n' }}" {{ 'checked' if not aj.bizum_telefono }}>
+        <label for="m-mano-{{ 'm' if persona else 'n' }}"><span class="ico">💶</span><b>En mano</b><span class="muted peq">Se lo das a un organizador</span></label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn grande" type="submit">Reservar mis papeletas</button>
+  <p class="ayuda centro" style="margin-top:10px">Entran en la bolsa en cuanto un organizador confirme el pago.</p>
+</form>

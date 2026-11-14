@@ -1,0 +1,14 @@
+<header class="cabecera">
+  <div class="contenedor">
+    <div class="adorno">Sorteo</div>
+    <h1>{{ titulo or aj.titulo }}</h1>
+    {% if lema %}<p class="lema">{{ lema }}</p>{% endif %}
+    <div class="chips">
+      {% if aj.abierta %}<span class="chip ok"><span class="punto"></span> Venta abierta</span>
+      {% else %}<span class="chip cerrada"><span class="punto"></span> Venta cerrada</span>{% endif %}
+      <span class="chip">🎟️ {{ aj.precio_cent|euros }} la papeleta</span>
+      {% if aj.fecha_sorteo %}<span class="chip">📅 {{ aj.fecha_sorteo }}</span>{% endif %}
+    </div>
+    {% if cta and aj.abierta %}<div class="cta"><a class="btn" href="#participar">🎟️ Quiero mis papeletas</a></div>{% endif %}
+  </div>
+</header>

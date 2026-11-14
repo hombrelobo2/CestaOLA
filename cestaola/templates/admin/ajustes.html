@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titulo %}Ajustes · Panel{% endblock %}
+{% block contenido %}
+<section style="max-width:720px; margin-inline:auto">
+  <form method="post" class="tarjeta">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2>Ajustes del sorteo</h2>
+
+    <div class="campo">
+      <label for="titulo">Título</label>
+      <input type="text" id="titulo" name="titulo" maxlength="120" value="{{ aj.titulo }}">
+    </div>
+    <div class="campo">
+      <label for="texto">Texto de bienvenida</label>
+      <textarea id="texto" name="texto" maxlength="2000">{{ aj.texto }}</textarea>
+    </div>
+    <div class="dos-col">
+      <div class="campo">
+        <label for="precio">Precio por papeleta (€)</label>
+        <input type="text" id="precio" name="precio" inputmode="decimal" value="{{ ('%.2f'|format(aj.precio_cent/100))|replace('.', ',') }}">
+        <div class="ayuda">Las compras ya hechas mantienen su precio.</div>
+      </div>
+      <div class="campo">
+        <label for="max_por_compra">Máximo de papeletas por compra</label>
+        <input type="number" id="max_por_compra" name="max_por_compra" min="1" max="500" value="{{ aj.max_por_compra }}">
+      </div>
+      <div class="campo">
+        <label for="fecha_sorteo">Fecha del sorteo</label>
+        <input type="text" id="fecha_sorteo" name="fecha_sorteo" maxlength="80" value="{{ aj.fecha_sorteo }}" placeholder="viernes 19 de diciembre, 13:00">
+      </div>
+      <div class="campo">
+        <label for="prefijo">Prefijo del concepto</label>
+        <input type="text" id="prefijo" name="prefijo" maxlength="10" value="{{ aj.prefijo }}">
+        <div class="ayuda">Saldrá como {{ aj.prefijo }}-0001</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:10px"><span style="color:#05c3b6; font-weight:800">bizum</span></h3>
+    <div class="dos-col">
+      <div class="campo">
+        <label for="bizum_telefono">Teléfono que recibe los Bizum</label>
+        <input type="tel" id="bizum_telefono" name="bizum_telefono" maxlength="20" value="{{ aj.bizum_telefono }}" placeholder="600 123 456">
+        <div class="ayuda">Si lo dejas vacío, solo se ofrece el pago en mano.</div>
+      </div>
+      <div class="campo">
+        <label for="bizum_titular">Nombre del titular</label>
+        <input type="text" id="bizum_titular" name="bizum_titular" maxlength="80" value="{{ aj.bizum_titular }}" placeholder="Opcional">
+      </div>
+    </div>
+    <button class="btn">Guardar ajustes</button>
+  </form>
+</section>
+{% endblock %}

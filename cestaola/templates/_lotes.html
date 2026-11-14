@@ -1,0 +1,19 @@
+<div class="rejilla">
+  {% for p in premios %}
+  <article class="tarjeta lote">
+    <div class="foto">
+      {% if p.foto %}<img src="{{ url_for('foto', nombre=p.foto) }}" alt="{{ p.nombre }}" loading="lazy">
+      {% else %}<div class="sin-foto">🎁</div>{% endif %}
+      <span class="num">{{ loop.index }}</span>
+      <span class="precio">{{ p.precio_cent|euros }}</span>
+    </div>
+    <div class="cuerpo">
+      <h3>{{ p.nombre }}</h3>
+      {% if p.descripcion %}<p>{{ p.descripcion }}</p>{% endif %}
+      {% if mostrar_ganadores and p.ganador_nombre %}<div class="ganador">{{ p.ganador_nombre }}</div>{% endif %}
+    </div>
+  </article>
+  {% else %}
+  <div class="tarjeta centro muted">Los lotes se anunciarán muy pronto 🎁</div>
+  {% endfor %}
+</div>

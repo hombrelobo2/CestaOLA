@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block titulo %}Lotes · Panel{% endblock %}
+{% block contenido %}
+<section>
+  <div class="titulo-seccion">
+    <h2>Lotes</h2>
+    <div class="botones">
+      <a class="btn sec peq" href="{{ url_for('premios_pdf') }}" target="_blank">📄 PDF</a>
+      <a class="btn peq" href="{{ url_for('admin_premio') }}">➕ Nuevo lote</a>
+    </div>
+  </div>
+  <div class="tarjeta tabla-env">
+    <table class="tabla">
+      <thead><tr><th></th><th>#</th><th>Lote</th><th class="num">Precio real</th><th>Premiado</th><th></th></tr></thead>
+      <tbody>
+      {% for p in premios %}
+      <tr>
+        <td>{% if p.foto %}<img class="miniatura" src="{{ url_for('foto', nombre=p.foto) }}" alt="">{% else %}<div class="miniatura" style="display:grid;place-items:center">🎁</div>{% endif %}</td>
+        <td class="muted">{{ p.orden }}</td>
+        <td><b>{{ p.nombre }}</b><div class="muted peq">{{ p.descripcion|truncate(90) }}</div></td>
+        <td class="num"><b>{{ p.precio_cent|euros }}</b></td>
+        <td>{{ p.ganador_nombre or '—' }}</td>
+        <td><a class="btn sec peq" href="{{ url_for('admin_premio', pid=p.id) }}">Editar</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="centro muted" style="padding:30px">Añade el primer lote con su foto, descripción y precio.</td></tr>
+      {% endfor %}
+      </tbody>
+      {% if premios %}<tfoot><tr><td colspan="3" style="text-align:right"><b>Valor total</b></td><td class="num"><b>{{ res.coste|euros }}</b></td><td colspan="2"></td></tr></tfoot>{% endif %}
+    </table>
+  </div>
+</section>
+{% endblock %}

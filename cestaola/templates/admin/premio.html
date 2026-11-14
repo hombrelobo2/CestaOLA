@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titulo %}{{ 'Editar' if premio else 'Nuevo' }} lote · Panel{% endblock %}
+{% block contenido %}
+{% set v = form if form else (premio or {}) %}
+<section style="max-width:720px; margin-inline:auto">
+  <p><a href="{{ url_for('admin_premios') }}">← Lotes</a></p>
+  <form method="post" enctype="multipart/form-data" class="tarjeta">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2>{{ 'Editar lote' if premio else 'Nuevo lote' }}</h2>
+
+    <div class="campo">
+      <label for="foto">Foto</label>
+      <img id="previa" src="{{ url_for('foto', nombre=premio.foto) if premio and premio.foto else '' }}" alt=""
+           style="width:100%; max-height:320px; object-fit:cover; border-radius:14px; margin-bottom:10px" {{ 'hidden' if not (premio and premio.foto) }}>
+      <input type="file" id="foto" name="foto" accept="image/*" data-previa="#previa">
+      <div class="ayuda">Desde el móvil puedes hacerla al momento. Se reduce automáticamente.</div>
+      {% if premio and premio.foto %}<label style="font-weight:400; margin-top:8px"><input type="checkbox" name="quitar_foto" value="1"> Quitar la foto</label>{% endif %}
+    </div>
+
+    <div class="campo">
+      <label for="nombre">Nombre del lote</label>
+      <input type="text" id="nombre" name="nombre" required maxlength="120" value="{{ v.nombre or '' }}" placeholder="Cesta ibérica">
+    </div>
+    <div class="campo">
+      <label for="descripcion">Descripción</label>
+      <textarea id="descripcion" name="descripcion" maxlength="4000" placeholder="Jamón, queso curado, turrón, cava…">{{ v.descripcion or '' }}</textarea>
+    </div>
+    <div class="dos-col">
+      <div class="campo">
+        <label for="precio">Precio real (€)</label>
+        <input type="text" id="precio" name="precio" inputmode="decimal" required
+               value="{{ v.precio if form else ('%.2f'|format((premio.precio_cent if premio else 0)/100))|replace('.', ',') }}">
+        <div class="ayuda">Lo que ha costado de verdad. Cuentas claras.</div>
+      </div>
+      <div class="campo">
+        <label for="orden">Orden</label>
+        <input type="number" id="orden" name="orden" value="{{ v.orden or '' }}" placeholder="auto">
+        <div class="ayuda">1 = primer lote que se sortea.</div>
+      </div>
+    </div>
+    <div class="botones" style="justify-content:space-between">
+      <button class="btn" type="submit">Guardar lote</button>
+    </div>
+  </form>
+  {% if premio %}
+  <form method="post" style="margin-top:14px; text-align:right" data-confirmar="¿Borrar el lote «{{ premio.nombre }}»?">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="borrar">
+    <button class="btn fantasma peq">Borrar este lote</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

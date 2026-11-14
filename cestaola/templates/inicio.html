@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block cabecera %}{% with lema = aj.texto, cta = True %}{% include "_cabecera.html" %}{% endwith %}{% endblock %}
+{% block contenido %}
+
+{% if persona %}
+<div class="aviso info" style="margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:space-between">
+  <span>👋 Hola, <b>{{ persona.nombre }}</b>: tienes <b>{{ mis.c }}</b> papeleta{{ 's' if mis.c != 1 }} en la bolsa{% if mis.p %} y <b>{{ mis.p }}</b> pendiente{{ 's' if mis.p != 1 }} de confirmar{% endif %}.</span>
+  <a class="btn peq" href="{{ url_for('mi', token=persona.token) }}">Ver mis papeletas</a>
+</div>
+{% endif %}
+
+{% set publicados = aj.publicar_ganadores and premios|selectattr('ganador_nombre')|list %}
+{% if publicados %}
+<section>
+  <div class="tarjeta premiado">
+    <div class="copa">🏆</div>
+    <h2>¡Ya tenemos premiados!</h2>
+    <p class="muted">Enhorabuena a los afortunados y gracias a todos por participar.</p>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <div class="titulo-seccion">
+    <h2>Los lotes</h2>
+    {% if premios %}<a class="btn sec peq" href="{{ url_for('premios_pdf') }}" target="_blank">📄 Descargar PDF</a>{% endif %}
+  </div>
+  {% with mostrar_ganadores = aj.publicar_ganadores %}{% include "_lotes.html" %}{% endwith %}
+</section>
+
+<section>
+  <div class="titulo-seccion"><h2>Cuentas claras</h2><span class="muted peq">amigos eternos</span></div>
+  <div class="cuentas">
+    <div class="tarjeta libro">
+      <dl>
+        <div class="fila"><dt>Valor real de los lotes</dt><span class="puntos"></span><dd>{{ res.coste|euros }}</dd></div>
+        <div class="fila"><dt>Recaudado (pagos confirmados)</dt><span class="puntos"></span><dd>{{ res.recaudado|euros }}</dd></div>
+        <div class="fila total"><dt>{{ 'Sobra' if res.balance >= 0 else 'Falta para cubrir los lotes' }}</dt><span class="puntos"></span>
+          <dd class="{{ 'positivo' if res.balance >= 0 else 'negativo' }}">{{ (res.balance if res.balance >= 0 else -res.balance)|euros }}</dd></div>
+      </dl>
+      {% if res.coste %}
+      {% set pct = [100, (res.recaudado * 100 / res.coste)|round(0, 'floor')|int]|min %}
+      <div class="barra-progreso" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ pct }}%"></span></div>
+      <div class="muted peq">{{ pct }} % del valor de los lotes cubierto</div>
+      {% endif %}
+    </div>
+    <div class="cifras">
+      <div class="cifra"><b>{{ res.papeletas }}</b><span>papeletas en la bolsa</span></div>
+      <div class="cifra"><b>{{ res.personas }}</b><span>participantes</span></div>
+      <div class="cifra"><b>{{ premios|length }}</b><span>lote{{ 's' if premios|length != 1 }}</span></div>
+      <div class="cifra"><b>{{ aj.precio_cent|euros }}</b><span>por papeleta</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  {% if aj.abierta %}
+    <div style="max-width:560px; margin-inline:auto">
+      {% if persona and not request.args.get('otra') %}
+        {% include "_formulario.html" %}
+        <p class="centro peq" style="margin-top:12px"><a href="{{ url_for('inicio', otra=1) }}#participar">¿Compras para otra persona? Usa otro nombre</a></p>
+      {% else %}
+        {% with persona = None %}{% include "_formulario.html" %}{% endwith %}
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="tarjeta centro">
+      <h3>La venta de papeletas está cerrada</h3>
+      <p class="muted">Gracias por participar. {% if aj.fecha_sorteo %}El sorteo es {{ aj.fecha_sorteo }}.{% endif %}</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

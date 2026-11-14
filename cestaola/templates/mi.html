@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block titulo %}Mis papeletas · {{ aj.titulo }}{% endblock %}
+{% block cabecera %}{% with titulo = 'Mis papeletas', lema = None, cta = False %}{% include "_cabecera.html" %}{% endwith %}{% endblock %}
+{% block contenido %}
+
+{% if premiado and aj.publicar_ganadores %}
+<section>
+  <div class="tarjeta premiado">
+    <div class="copa">🏆</div>
+    <h2>¡Enhorabuena, {{ persona.nombre }}!</h2>
+    <p>Te ha tocado: <b>{{ premiado|map(attribute='nombre')|join(', ') }}</b></p>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <div class="ticket">
+    <div class="izq">
+      <div class="adorno">{{ aj.titulo }}</div>
+      <div class="nombre">{{ persona.nombre }}</div>
+      <p style="margin:.6em 0 0; opacity:.9">
+        {% if pendientes %}{{ pendientes }} papeleta{{ 's' if pendientes != 1 }} pendiente{{ 's' if pendientes != 1 }} de confirmar el pago.{% else %}Todo en orden ✓{% endif %}
+      </p>
+    </div>
+    <div class="der">
+      <div><div class="grande">{{ confirmadas }}</div><div class="peq">en la bolsa</div></div>
+    </div>
+  </div>
+</section>
+
+{% set pendientes_bizum = compras|selectattr('estado','equalto','pendiente')|selectattr('metodo','equalto','bizum')|list %}
+{% if pendientes_bizum and aj.bizum_telefono %}
+<section>
+  {% for c in pendientes_bizum %}
+  <div class="tarjeta bizum" style="margin-bottom:14px">
+    <h3><span class="logo">bizum</span> · paga {{ (c.cantidad * c.precio_cent)|euros }}</h3>
+    <p class="muted peq">Abre la app de tu banco, entra en Bizum → Enviar dinero y usa estos datos:</p>
+    <div class="datos-pago">
+      <div class="dato"><div><small>Teléfono{% if aj.bizum_titular %} ({{ aj.bizum_titular }}){% endif %}</small><b>{{ aj.bizum_telefono }}</b></div>
+        <button class="btn sec peq copiar" type="button" data-copiar="{{ aj.bizum_telefono|replace(' ','') }}">Copiar</button></div>
+      <div class="dato"><div><small>Importe</small><b>{{ (c.cantidad * c.precio_cent)|euros }}</b></div>
+        <button class="btn sec peq copiar" type="button" data-copiar="{{ '%.2f'|format(c.cantidad * c.precio_cent / 100)|replace('.', ',') }}">Copiar</button></div>
+      <div class="dato"><div><small>Concepto (¡importante!)</small><b>{{ concepto(c.id) }}</b></div>
+        <button class="btn sec peq copiar" type="button" data-copiar="{{ concepto(c.id) }}">Copiar</button></div>
+    </div>
+    <p class="ayuda">Cuando un organizador vea el Bizum, tus papeletas pasarán a la bolsa y lo verás aquí.</p>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% set pendientes_mano = compras|selectattr('estado','equalto','pendiente')|selectattr('metodo','equalto','mano')|list %}
+{% if pendientes_mano %}
+{% set t = namespace(n=0, cent=0) %}
+{% for c in pendientes_mano %}{% set t.n = t.n + c.cantidad %}{% set t.cent = t.cent + c.cantidad * c.precio_cent %}{% endfor %}
+<div class="aviso info">💶 Tienes <b>{{ t.n }}</b> papeleta{{ 's' if t.n != 1 }} para pagar en mano: <b>{{ t.cent|euros }}</b>.
+  Entrega el dinero a un organizador y dile tu nombre.</div>
+{% endif %}
+
+<section>
+  <div class="tarjeta">
+    <h3>Guarda tu enlace personal</h3>
+    <p class="muted">Con este enlace vuelves a tus papeletas y puedes comprar más cuando quieras, desde cualquier móvil. No lo compartas con otros.</p>
+    <div class="dato" style="margin-bottom:12px"><div style="min-width:0"><small>Tu enlace</small><b class="peq" style="font-weight:600">{{ enlace }}</b></div></div>
+    <div class="botones">
+      <button class="btn oro" type="button" data-copiar="{{ enlace }}">Copiar enlace</button>
+      <button class="btn sec" type="button" data-compartir="{{ enlace }}" data-texto="Mis papeletas de {{ aj.titulo }}:">Guardármelo en WhatsApp</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="titulo-seccion"><h2>Historial</h2></div>
+  <div class="tarjeta">
+    <ul class="lista-compras">
+      {% for c in compras %}
+      <li {% if nueva == c.id %}style="background:#fffbea; margin:0 -12px; padding-inline:12px; border-radius:10px"{% endif %}>
+        <div class="que">
+          <b>{{ c.cantidad }} papeleta{{ 's' if c.cantidad != 1 }}</b> · {{ (c.cantidad * c.precio_cent)|euros }}
+          <div class="muted peq">{{ concepto(c.id) }} · {{ '📱 Bizum' if c.metodo == 'bizum' else '💶 En mano' }} · {{ c.creado[:16] }}</div>
+        </div>
+        <span class="estado {{ c.estado }}">{{ {'pendiente':'Pendiente','confirmado':'Confirmado','rechazado':'Anulado'}[c.estado] }}</span>
+        {% if c.estado == 'pendiente' and aj.bizum_telefono %}
+        <form method="post" action="{{ url_for('cambiar_pago', token=persona.token, cid=c.id) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="metodo" value="{{ 'mano' if c.metodo == 'bizum' else 'bizum' }}">
+          <button class="btn fantasma peq" type="submit">Prefiero {{ 'en mano' if c.metodo == 'bizum' else 'Bizum' }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section style="max-width:560px; margin-inline:auto">
+  {% if aj.abierta %}{% include "_formulario.html" %}
+  {% else %}<div class="tarjeta centro"><h3>La venta está cerrada</h3><p class="muted">¡Suerte en el sorteo!</p></div>{% endif %}
+  <p class="centro" style="margin-top:18px"><a href="{{ url_for('inicio') }}">← Ver los lotes y las cuentas</a></p>
+</section>
+{% endblock %}

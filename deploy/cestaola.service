@@ -1,0 +1,22 @@
+[Unit]
+Description=CestaOLA - sorteo de la cesta
+After=network.target
+
+[Service]
+User=cestaola
+Group=cestaola
+WorkingDirectory=/opt/cestaola
+EnvironmentFile=/etc/cestaola/cestaola.env
+ExecStart=/opt/cestaola/.venv/bin/gunicorn --workers 2 --threads 4 --bind 0.0.0.0:__PUERTO__ --access-logfile - wsgi:app
+Restart=on-failure
+RestartSec=3
+
+# Endurecimiento
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cestaola
+
+[Install]
+WantedBy=multi-user.target
