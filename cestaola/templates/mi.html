@@ -13,6 +13,13 @@
 </section>
 {% endif %}
 
+{% if nueva %}{% set cn = compras|selectattr('id','equalto',nueva)|first %}{% if cn %}
+<div class="aviso ok" style="margin-top:18px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap">
+  <span>✅ Reserva <b>{{ concepto(cn.id) }}</b> hecha: {{ cn.cantidad }} papeleta{{ 's' if cn.cantidad != 1 }}.</span>
+  <a class="btn verde peq" href="{{ url_for('resguardo', token=persona.token, cid=cn.id, t=ahora()) }}" target="_blank">📄 Descargar resguardo</a>
+</div>
+{% endif %}{% endif %}
+
 <section>
   <div class="ticket">
     <div class="izq">
@@ -80,6 +87,7 @@
           <b>{{ c.cantidad }} papeleta{{ 's' if c.cantidad != 1 }}</b> · {{ (c.cantidad * c.precio_cent)|euros }}
           <div class="muted peq">{{ concepto(c.id) }} · {{ '📱 Bizum' if c.metodo == 'bizum' else '💶 En mano' }}{% if c.receptor %} a {{ c.receptor }}{% endif %} · {{ c.creado[:16] }}</div>
         </div>
+        <a class="btn sec peq" href="{{ url_for('resguardo', token=persona.token, cid=c.id, t=ahora()) }}" target="_blank">📄 Resguardo</a>
         <span class="estado {{ c.estado }}">{{ {'pendiente':'Pendiente','confirmado':'Confirmado','rechazado':'Anulado'}[c.estado] }}</span>
         {% if c.estado == 'pendiente' and aj.opciones_pago|length > 1 %}
         <form method="post" action="{{ url_for('cambiar_pago', token=persona.token, cid=c.id) }}" class="cambiar-pago">

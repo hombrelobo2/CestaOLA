@@ -74,6 +74,10 @@ def test_flujo_completo():
     r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "2", "pago": "mano:1"})
     assert "a <b>Marta</b>" in pub.get(enlace.split("?")[0]).text
     assert "/mi/" + token in r.headers["Location"]
+    r = pub.get(f"/mi/{token}/resguardo/1")
+    assert r.data[:4] == b"%PDF" and "resguardo-OLA-0001" in r.headers["Content-Disposition"]
+    open(os.path.join(tmp, "resguardo.pdf"), "wb").write(r.data)
+    assert pub.get("/mi/otro/resguardo/1").status_code == 404
     # la portada lo reconoce por cookie
     assert "Hola, <b>María José" in pub.get("/").text
 

@@ -238,3 +238,128 @@ def pdf_lotes_sobres(aj, premios, carpeta_fotos):
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+def _fecha(iso):
+    """'2026-11-14 12:46:03' -> '14/11/2026 12:46'"""
+    try:
+        f, h = iso.split(" ")
+        a, m, d = f.split("-")
+        return f"{d}/{m}/{a} {h[:5]}"
+    except ValueError:
+        return iso
+
+
+def pdf_resguardo(aj, persona, compra, concepto, enlace, total_confirmadas):
+    """Resguardo de una reserva, tamaño A6 apaisado, con QR al enlace personal."""
+    from reportlab.graphics.barcode.qr import QrCodeWidget
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.graphics import renderPDF
+    from . import euros
+
+    W, H = 148 * mm, 105 * mm
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(W, H))
+    c.setTitle(f"Resguardo {concepto} - {persona['nombre']}")
+    talon = 46 * mm                    # ancho del talón con el QR
+    xt = W - talon                     # línea de separación
+
+    # Fondo
+    c.setFillColor(CREMA); c.rect(0, 0, W, H, stroke=0, fill=1)
+    # Cabecera granate (parte principal)
+    c.setFillColor(VINO); c.rect(0, H - 26 * mm, xt, 26 * mm, stroke=0, fill=1)
+    c.setFillColor(CREMA)
+    r = 2.2 * mm; xx = r
+    while xx < xt:
+        c.circle(xx, H - 26 * mm, r, stroke=0, fill=1); xx += 2 * r
+    c.setFillColor(ORO); c.setFont("Helvetica-Bold", 7.5)
+    c.drawString(8 * mm, H - 9 * mm, "R E S G U A R D O")
+    c.setFillColor(colors.HexColor("#fff6e6")); c.setFont("Times-Bold", 17)
+    c.drawString(8 * mm, H - 17 * mm, aj["titulo"][:30])
+    c.setFont("Helvetica-Bold", 10); c.setFillColor(colors.HexColor("#f1e2bd"))
+    c.drawRightString(xt - 7 * mm, H - 9 * mm, concepto)
+
+    # Nombre
+    c.setFillColor(TINTA)
+    tam = _ajustar_fuente(persona["nombre"], "Times-Bold", 20, 10, xt - 16 * mm)
+    c.setFont("Times-Bold", tam)
+    c.drawString(8 * mm, H - 38 * mm, persona["nombre"])
+
+    # Datos
+    pago = "Bizum" if compra["metodo"] == "bizum" else "En mano"
+    if compra["receptor"]:
+        pago += f" a {compra['receptor']}"
+    if compra["metodo"] == "bizum" and compra["receptor_tel"]:
+        pago += f" ({compra['receptor_tel']})"
+    filas = [
+        ("Papeletas", f"{compra['cantidad']}"),
+        ("Importe", euros(compra["cantidad"] * compra["precio_cent"])),
+        ("Pago", pago),
+        ("Reservado", _fecha(compra["creado"])),
+    ]
+    if aj.get("fecha_sorteo"):
+        filas.append(("Sorteo", aj["fecha_sorteo"][:40]))
+    y = H - 47 * mm
+    for k, v in filas:
+        c.setFont("Helvetica", 7.5); c.setFillColor(colors.HexColor("#7b675d"))
+        c.drawString(8 * mm, y, k.upper())
+        c.setFont("Helvetica-Bold", 9.5); c.setFillColor(TINTA)
+        txt = v
+        while stringWidth(txt, "Helvetica-Bold", 9.5) > xt - 36 * mm and len(txt) > 4:
+            txt = txt[:-2]
+        c.drawString(30 * mm, y, txt if txt == v else txt + "…")
+        y -= 5.6 * mm
+
+    # Estado (sello)
+    estado = compra["estado"]
+    texto, color = {"confirmado": ("PAGADO", colors.HexColor("#2e5a4c")),
+                    "pendiente": ("PENDIENTE DE PAGO", colors.HexColor("#a67c1e")),
+                    "rechazado": ("ANULADO", colors.HexColor("#b3261e"))}[estado]
+    c.saveState()
+    c.translate(xt - 24 * mm, 17 * mm)
+    c.rotate(8)
+    c.setStrokeColor(color); c.setFillColor(color); c.setLineWidth(1.4)
+    tw = stringWidth(texto, "Helvetica-Bold", 9) + 8 * mm
+    c.roundRect(-tw / 2, -4 * mm, tw, 8 * mm, 2 * mm)
+    c.setFont("Helvetica-Bold", 9); c.drawCentredString(0, -1.2 * mm, texto)
+    c.restoreState()
+
+    c.setFont("Times-Italic", 7.5); c.setFillColor(colors.HexColor("#7b675d"))
+    c.drawString(8 * mm, 6 * mm, "Cuentas claras, amigos eternos")
+
+    # Separación troquelada
+    c.setStrokeColor(colors.HexColor("#c8b9a6")); c.setLineWidth(0.7); c.setDash(2, 2.5)
+    c.line(xt, 4 * mm, xt, H - 4 * mm); c.setDash()
+    c.setFillColor(colors.white)
+    c.circle(xt, H, 3 * mm, stroke=0, fill=1); c.circle(xt, 0, 3 * mm, stroke=0, fill=1)
+
+    # Talón: QR al enlace personal
+    cx = xt + talon / 2
+    c.setFillColor(VINO); c.setFont("Helvetica-Bold", 7)
+    c.drawCentredString(cx, H - 10 * mm, "TUS PAPELETAS")
+    lado = 34 * mm
+    qr = QrCodeWidget(enlace, barLevel="M")
+    b = qr.getBounds(); qw, qh = b[2] - b[0], b[3] - b[1]
+    d = Drawing(lado, lado, transform=[lado / qw, 0, 0, lado / qh, 0, 0])
+    qr.barFillColor = TINTA
+    d.add(qr)
+    c.setFillColor(colors.white)
+    c.roundRect(cx - lado / 2 - 2 * mm, H - 14 * mm - lado - 2 * mm, lado + 4 * mm, lado + 4 * mm, 2 * mm, stroke=0, fill=1)
+    renderPDF.draw(d, c, cx - lado / 2, H - 14 * mm - lado)
+    c.setFont("Helvetica", 6.5); c.setFillColor(colors.HexColor("#5a4a42"))
+    c.drawCentredString(cx, H - 55 * mm, "Escanéalo para ver tus")
+    c.drawCentredString(cx, H - 58.5 * mm, "papeletas o comprar más")
+    c.setFillColor(ORO); c.setFont("Times-Bold", 24)
+    c.drawCentredString(cx, 20 * mm, str(total_confirmadas))
+    c.setFont("Helvetica", 6.5); c.setFillColor(colors.HexColor("#5a4a42"))
+    c.drawCentredString(cx, 15.5 * mm, "en la bolsa ahora mismo")
+    # Enlace en texto (y clicable)
+    c.setFont("Helvetica", 5); c.setFillColor(colors.HexColor("#7b675d"))
+    corto = enlace.split("://", 1)[-1]
+    mitad = len(corto) // 2
+    c.drawCentredString(cx, 9 * mm, corto[:mitad])
+    c.drawCentredString(cx, 6.5 * mm, corto[mitad:])
+    c.linkURL(enlace, (xt, 0, W, H), relative=0)
+    c.showPage()
+    c.save()
+    return buf.getvalue()

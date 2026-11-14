@@ -67,6 +67,7 @@
           <td><span class="estado {{ c.estado }}">{{ c.estado }}</span></td>
           <td class="acciones" style="white-space:nowrap">
             {% set volver = url_for('admin', estado=filtro, quien=quien) %}
+            <a class="btn sec peq" href="{{ url_for('resguardo', token=c.token, cid=c.id, t=ahora()) }}" target="_blank" title="Resguardo">📄</a>
             {% if c.estado != 'confirmado' %}
             <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='confirmar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn verde peq">✓ Cobrado</button></form>
             {% else %}

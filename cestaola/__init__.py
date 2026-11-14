@@ -216,6 +216,21 @@ def create_app(test_config=None):
                         secure=app.config["SESSION_COOKIE_SECURE"])
         return resp
 
+    @app.get("/mi/<token>/resguardo/<int:cid>")
+    def resguardo(token, cid):
+        persona = D.persona_por_token(token)
+        if not persona:
+            abort(404)
+        db = D.get_db()
+        compra = db.execute("SELECT * FROM compras WHERE id=? AND persona_id=?", (cid, persona["id"])).fetchone()
+        if not compra:
+            abort(404)
+        total = db.execute("SELECT COALESCE(SUM(cantidad),0) FROM compras WHERE persona_id=? AND estado='confirmado'",
+                           (persona["id"],)).fetchone()[0]
+        datos = pdfs.pdf_resguardo(D.ajustes(), persona, compra, concepto(cid),
+                                   url_externa("mi", token=token), total)
+        return enviar_pdf(datos, f"resguardo-{concepto(cid)}")
+
     @app.post("/mi/<token>/cambiar-pago/<int:cid>")
     def cambiar_pago(token, cid):
         persona = D.persona_por_token(token)
