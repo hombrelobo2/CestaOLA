@@ -11,7 +11,7 @@
   <div class="aviso info">La venta sigue abierta. Ciérrala desde <a href="{{ url_for('admin') }}">Pagos</a> antes de imprimir las papeletas para que no entren más.</div>
   {% endif %}
 
-  <div class="botones" style="margin:6px 0 20px">
+  <div class="botones acciones-pagina" style="margin:6px 0 20px">
     <a class="btn oro" href="{{ url_for('admin_papeletas', t=ahora()) }}" target="_blank">🖨️ Imprimir papeletas (10×5 cm)</a>
     <a class="btn sec" href="{{ url_for('admin_lotes_pdf', t=ahora()) }}" target="_blank">✉️ Lotes para sobres (PDF)</a>
   </div>
@@ -20,28 +20,25 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <input type="hidden" name="accion" value="ganadores">
     <p class="muted">Saca un nombre de la bolsa y apúntalo en su lote.</p>
-    <div class="tabla-env">
-    <table class="tabla">
-      <thead><tr><th></th><th>Lote</th><th>Premiado/a</th></tr></thead>
-      <tbody>
-      {% for p in premios %}
-      <tr>
-        <td>{% if p.foto %}<img class="miniatura" src="{{ url_for('foto', nombre=p.foto) }}" alt="">{% else %}<div class="miniatura" style="display:grid;place-items:center">🎁</div>{% endif %}</td>
-        <td><b>{{ loop.index }}. {{ p.nombre }}</b><div class="muted peq">{{ p.precio_cent|euros }}</div></td>
-        <td style="min-width:220px">
-          <select name="ganador_{{ p.id }}">
-            <option value="">— sin asignar —</option>
-            {% for pe in personas %}<option value="{{ pe.id }}" {{ 'selected' if p.ganador_id == pe.id }}>{{ pe.nombre }}</option>{% endfor %}
-          </select>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="centro muted" style="padding:30px">No hay lotes todavía.</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    </div>
-    <div style="margin-top:16px"><button class="btn">Guardar premiados</button></div>
+    <ul class="lista-lotes lista-sorteo">
+    {% for p in premios %}
+      <li>
+        {% if p.foto %}<img class="miniatura" src="{{ url_for('foto', nombre=p.foto) }}" alt="" loading="lazy">
+        {% else %}<div class="miniatura vacia">🎁</div>{% endif %}
+        <div class="info">
+          <b>{{ loop.index }}. {{ p.nombre }}</b>
+          <span class="detalle">{{ p.precio_cent|euros }}</span>
+        </div>
+        <select name="ganador_{{ p.id }}" aria-label="Premiado/a de {{ p.nombre }}" class="{{ 'asignado' if p.ganador_id }}">
+          <option value="">— sin asignar —</option>
+          {% for pe in personas %}<option value="{{ pe.id }}" {{ 'selected' if p.ganador_id == pe.id }}>{{ pe.nombre }}</option>{% endfor %}
+        </select>
+      </li>
+    {% else %}
+      <li class="centro muted" style="padding:30px; justify-content:center">No hay lotes todavía.</li>
+    {% endfor %}
+    </ul>
+    <div style="margin-top:16px"><button class="btn bloque-movil">💾 Guardar premiados</button></div>
   </form>
 </section>
 
@@ -51,7 +48,7 @@
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <input type="hidden" name="accion" value="publicar">
       <h3>{{ '✅ Premiados publicados' if aj.publicar_ganadores else 'Publicar premiados' }}</h3>
-      <p class="muted">{{ 'Todos los ven en la web y en el PDF de lotes.' if aj.publicar_ganadores else 'Cuando estén todos, publícalos para que se vean en la web.' }}</p>
+      <p class="muted">{{ 'Todos los ven en la web y en su página personal.' if aj.publicar_ganadores else 'Cuando estén todos, publícalos para que se vean en la web.' }}</p>
       <input type="hidden" name="valor" value="{{ '0' if aj.publicar_ganadores else '1' }}">
       <button class="btn {{ 'sec' if aj.publicar_ganadores else 'verde' }}">{{ 'Ocultar de nuevo' if aj.publicar_ganadores else '📣 Publicar en la web' }}</button>
     </form>

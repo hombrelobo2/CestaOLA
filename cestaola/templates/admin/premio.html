@@ -12,7 +12,9 @@
       <label for="foto">Foto</label>
       <img id="previa" src="{{ url_for('foto', nombre=premio.foto) if premio and premio.foto else '' }}" alt=""
            style="width:100%; max-height:320px; object-fit:cover; border-radius:14px; margin-bottom:10px" {{ 'hidden' if not (premio and premio.foto) }}>
-      <input type="file" id="foto" name="foto" accept="image/*" data-previa="#previa">
+      <input type="file" id="foto" name="foto" accept="image/*" data-previa="#previa" class="oculto-accesible">
+      <label for="foto" class="btn sec bloque-movil" style="font-weight:600">📷 {{ 'Cambiar la foto' if premio and premio.foto else 'Hacer o elegir foto' }}</label>
+      <span class="ayuda" id="foto-nombre"></span>
       <div class="ayuda">Desde el móvil puedes hacerla al momento. Se reduce automáticamente.</div>
       {% if premio and premio.foto %}<label style="font-weight:400; margin-top:8px"><input type="checkbox" name="quitar_foto" value="1"> Quitar la foto</label>{% endif %}
     </div>
@@ -39,7 +41,7 @@
       </div>
     </div>
     <div class="botones" style="justify-content:space-between">
-      <button class="btn" type="submit">Guardar lote</button>
+      <button class="btn bloque-movil" type="submit">💾 Guardar lote</button>
     </div>
   </form>
   {% if premio %}

@@ -311,3 +311,25 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .titulo-seccion h2::after { margin-inline: auto; }
 }
 
+/* ---------- Panel en el móvil ---------- */
+.oculto-accesible { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+.lista-sorteo li { flex-wrap: wrap; }
+.lista-sorteo select { flex: 0 0 240px; width: 240px; }
+.lista-sorteo select.asignado { border-color: var(--abeto); background: var(--abeto-claro); font-weight: 600; }
+@media (max-width: 560px) {
+  .lista-sorteo select { flex: 1 1 100%; width: 100%; }
+  .acciones-pagina { width: 100%; }
+  .acciones-pagina .btn { flex: 1 1 auto; }
+  .bloque-movil { width: 100%; }
+  /* Pagos y participantes: cada fila como una tarjeta que no se sale de la pantalla */
+  .tarjetas-movil, .tarjetas-movil tbody { display: block; width: 100%; }
+  .tarjetas-movil td.acciones { white-space: normal !important; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tarjetas-movil td.acciones form { display: contents; }
+  .tarjetas-movil td.acciones .btn { flex: 1 1 auto; }
+  .tarjetas-movil td.acciones .btn.fantasma { flex: 0 0 auto; }
+  .tarjetas-movil td.acciones-persona { white-space: normal !important; }
+  .tarjetas-movil td.acciones-persona .btn { flex: 1 1 auto; }
+  .tarjetas-movil td:last-child form { display: inline; }
+  .titulo-seccion form { width: 100%; display: flex; justify-content: center; gap: 8px; align-items: center; }
+}
+

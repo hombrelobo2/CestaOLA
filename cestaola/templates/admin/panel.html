@@ -35,7 +35,7 @@
     <div class="cifra"><b class="{{ 'positivo' if res.balance >= 0 else 'negativo' }}">{{ res.balance|euros }}</b><span>balance</span></div>
   </div>
 
-  <div class="botones" style="margin-bottom:22px">
+  <div class="botones acciones-pagina" style="margin-bottom:22px">
     <a class="btn oro" href="{{ url_for('admin_papeletas', t=ahora()) }}" target="_blank">🖨️ Papeletas para la bolsa (PDF)</a>
     <a class="btn sec" href="{{ url_for('admin_lotes_pdf', t=ahora()) }}" target="_blank">✉️ Lotes para sobres (PDF)</a>
     <a class="btn sec" href="{{ url_for('admin_csv') }}">⬇️ Exportar CSV</a>

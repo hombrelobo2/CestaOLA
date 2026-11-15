@@ -91,6 +91,8 @@
     inp.addEventListener('change', function () {
       var img = document.querySelector(inp.dataset.previa);
       if (img && inp.files && inp.files[0]) { img.src = URL.createObjectURL(inp.files[0]); img.hidden = false; }
+      var n = document.getElementById('foto-nombre');
+      if (n && inp.files && inp.files[0]) n.textContent = '✓ ' + inp.files[0].name + ' (se guardará al pulsar Guardar lote)';
     });
   });
 })();
