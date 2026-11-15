@@ -8,20 +8,24 @@
   <meta property="og:title" content="{{ aj.titulo }}">
   <meta property="og:description" content="Elige tus papeletas y participa en el sorteo de la cesta.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧺</text></svg>">
-  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v=6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}?v=7">
 </head>
 <body>
   {% if es_admin %}
-  <nav class="barra"><div class="contenedor">
-    <a class="marca" href="{{ url_for('admin') }}">🧺 Panel</a>
-    {% set ep = request.endpoint %}
-    <a href="{{ url_for('admin') }}" class="{{ 'activo' if ep == 'admin' }}">Pagos</a>
-    <a href="{{ url_for('admin_premios') }}" class="{{ 'activo' if ep in ('admin_premios','admin_premio') }}">Lotes</a>
-    <a href="{{ url_for('admin_sorteo') }}" class="{{ 'activo' if ep == 'admin_sorteo' }}">Sorteo</a>
-    <a href="{{ url_for('admin_ajustes') }}" class="{{ 'activo' if ep == 'admin_ajustes' }}">Ajustes</a>
-    <a href="{{ url_for('inicio') }}">Ver web</a>
-    <a href="{{ url_for('admin_salir') }}">Salir</a>
-  </div></nav>
+  {% set ep = request.endpoint %}
+  <nav class="barra">
+    <div class="contenedor fila-marca">
+      <a class="marca" href="{{ url_for('admin') }}">🧺 Panel</a>
+      <a class="secundario" href="{{ url_for('inicio') }}">Ver web ↗</a>
+      <a class="secundario" href="{{ url_for('admin_salir') }}">Salir</a>
+    </div>
+    <div class="contenedor pestanas-admin">
+      <a href="{{ url_for('admin') }}" class="{{ 'activo' if ep == 'admin' }}"><span>💶</span>Pagos</a>
+      <a href="{{ url_for('admin_premios') }}" class="{{ 'activo' if ep in ('admin_premios','admin_premio') }}"><span>🎁</span>Lotes</a>
+      <a href="{{ url_for('admin_sorteo') }}" class="{{ 'activo' if ep == 'admin_sorteo' }}"><span>🏆</span>Sorteo</a>
+      <a href="{{ url_for('admin_ajustes') }}" class="{{ 'activo' if ep == 'admin_ajustes' }}"><span>⚙️</span>Ajustes</a>
+    </div>
+  </nav>
   {% endif %}
 
   {% block cabecera %}{% endblock %}
