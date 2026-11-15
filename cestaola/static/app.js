@@ -66,6 +66,21 @@
     });
   });
 
+  // Descripciones de los lotes: plegadas a 2 líneas, se despliegan bajo demanda
+  document.querySelectorAll('.ver-mas').forEach(function (b) {
+    var p = document.getElementById(b.getAttribute('aria-controls'));
+    if (!p) return;
+    if (p.scrollHeight > p.clientHeight + 2) b.hidden = false;   // solo si de verdad hay más texto
+    else p.classList.remove('plegada');
+    b.addEventListener('click', function () {
+      var abrir = p.classList.contains('plegada');
+      p.classList.toggle('plegada', !abrir);
+      b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+      b.textContent = abrir ? 'Ver menos ▴' : 'Ver qué incluye ▾';
+      if (!abrir) b.closest('.lote').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });
