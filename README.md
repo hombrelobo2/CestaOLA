@@ -1,5 +1,7 @@
 # 🧺 CestaOLA
 
+> 📘 **[Guía visual en PDF](docs/Guia-CestaOLA.pdf)**: cómo se usa paso a paso (participantes, organizadores, día del sorteo) e instalación en Proxmox.
+
 Web para organizar el sorteo de la cesta de la empresa. Se manda el enlace al grupo de WhatsApp y cada persona:
 
 1. Ve los **lotes** con su foto, descripción y **precio real** (cuentas claras, amigos eternos).
@@ -108,6 +110,14 @@ journalctl -u cestaola -f                 # ver el registro
 Los datos (base de datos SQLite y fotos) están en `/var/lib/cestaola`. Para empezar de cero el año que viene: haz una copia, `systemctl stop cestaola`, borra `/var/lib/cestaola/cestaola.db*` y arranca de nuevo. También puedes simplemente hacer un *snapshot* del LXC en Proxmox antes.
 
 ## 🧪 Desarrollo
+
+La guía visual se regenera con capturas reales de la app (necesita Playwright y Chrome, solo para documentación):
+
+```bash
+python3 docs/guia/capturas.py   # datos de ejemplo + capturas
+python3 docs/guia/generar.py    # maqueta docs/Guia-CestaOLA.pdf
+```
+
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
