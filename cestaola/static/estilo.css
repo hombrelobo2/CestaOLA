@@ -273,3 +273,17 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .cabecera { padding: 28px 0 60px; }
 }
 .pie .github { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- Cabecera centrada (casi todo el mundo entra desde el móvil) ---------- */
+.cabecera { text-align: center; }
+.cabecera .lema { margin-inline: auto; }
+.cabecera .chips { justify-content: center; }
+.cabecera .cta { display: flex; justify-content: center; }
+/* el espaciado entre letras deja hueco tras la última: se compensa para que quede centrado */
+.adorno { display: inline-block; padding-left: .5em; }
+@media (max-width: 560px) {
+  .cabecera .cta .btn { width: 100%; max-width: 420px; }
+  .titulo-seccion { justify-content: center; text-align: center; flex-direction: column; align-items: center; gap: 6px; }
+  .titulo-seccion h2::after { margin-inline: auto; }
+}
+
