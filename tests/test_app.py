@@ -35,6 +35,16 @@ def test_flujo_completo():
     assert r.status_code == 200
     tok = _csrf(r.text)
 
+    # Telegram: se capturan los envíos en lugar de llamar a la API
+    from cestaola import telegram as tg
+    enviados = []
+    tg.enviar_en_segundo_plano = lambda token, chats, texto: enviados.append((token, chats, texto))
+    tg._llamar = lambda token, metodo, datos=None, timeout=8: (
+        {"ok": True, "result": {"username": "cesta_bot"}} if metodo == "getMe" else
+        {"ok": True, "result": [{"message": {"chat": {"id": 111, "type": "private", "first_name": "Ana"}}},
+                                {"my_chat_member": {"chat": {"id": -222, "type": "group", "title": "Organizadores"}}}]}
+        if metodo == "getUpdates" else {"ok": True})
+
     # sin CSRF -> 400
     assert c.post("/participar", data={"nombre": "X"}).status_code == 400
 
@@ -63,10 +73,25 @@ def test_flujo_completo():
     # compra pública con Bizum
     pub = app.test_client()
     tok = _csrf(pub.get("/").text)
+    c.post("/admin/login", data={"_csrf": _csrf(c.get('/admin/login').text), "clave": "secreta"})
+    ta = _csrf(c.get("/admin/ajustes").text)
+    c.post("/admin/ajustes", data={"_csrf": ta, "precio": "2,50", "titulo": "Cesta OLA 2026", "prefijo": "ola",
+                                   "max_por_compra": "40", "bizum_nombre": ["Ana", "Pedro"],
+                                   "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"],
+                                   "telegram_token": "123:abc", "telegram_chats": ""})
+    r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_detectar"}, follow_redirects=True)
+    assert "@cesta_bot" in r.text and "Organizadores" in r.text
+    assert "-222" in c.get("/admin/ajustes").text and "111" in c.get("/admin/ajustes").text
+    r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_prueba"}, follow_redirects=True)
+    assert r.text.count("mensaje enviado") == 2
+    c.get("/admin/salir")
     r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega",
                                      "cantidad": "3", "pago": "bizum:1"})
     assert r.status_code == 302
     enlace = r.headers["Location"]
+    assert len(enviados) == 1 and enviados[0][0] == "123:abc" and enviados[0][1] == "111, -222"
+    assert "Nueva reserva OLA-0001" in enviados[0][2] and "a Pedro" in enviados[0][2] and "7,50 €" in enviados[0][2]
+    assert "quien=bizum%7CPedro" in enviados[0][2]
     r = pub.get(enlace)
     assert "OLA-0001" in r.text and "7,50 €" in r.text and "611 222 333" in r.text and "a Pedro" in r.text
     token = re.search(r"/mi/([^?\"]+)", enlace).group(1)
@@ -128,6 +153,27 @@ def test_flujo_completo():
     c.post("/admin/sorteo", data={"_csrf": tok, "accion": "publicar", "valor": "1"})
     assert "Enhorabuena" in pub.get(enlace).text
     assert "Ya tenemos premiados" in pub.get("/").text
+
+    # copia de seguridad: exportar, cambiar algo, importar y comprobar que vuelve
+    r = c.get("/admin/copia.zip")
+    assert r.status_code == 200 and r.data[:2] == b"PK"
+    import zipfile
+    zf = zipfile.ZipFile(io.BytesIO(r.data))
+    assert "cestaola.db" in zf.namelist() and any(n.startswith("fotos/") for n in zf.namelist())
+    copia = r.data
+    c.post("/admin/compra/1/borrar", data={"_csrf": tok})
+    assert "OLA-0001" not in c.get("/admin?estado=todas").text
+    r = c.post("/admin/importar", data={"_csrf": tok, "copia": (io.BytesIO(copia), "c.zip")},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "Marca la casilla" in r.text
+    r = c.post("/admin/importar", data={"_csrf": tok, "confirmo": "1", "copia": (io.BytesIO(copia), "c.zip")},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "Copia importada" in r.text and "OLA-0001" in c.get("/admin?estado=todas").text
+    assert len(os.listdir(os.path.join(tmp, "copias"))) == 1
+    r = c.post("/admin/importar", data={"_csrf": tok, "confirmo": "1", "copia": (io.BytesIO(b"no es zip"), "x.zip")},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "no es un .zip" in r.text
+    assert pub.get("/admin/copia.zip").status_code == 302
 
     # cierre
     c.post("/admin/ajustes", data={"_csrf": tok, "accion": "estado", "valor": "cerrada"})

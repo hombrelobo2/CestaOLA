@@ -320,6 +320,7 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .lista-sorteo select { flex: 1 1 100%; width: 100%; }
   .acciones-pagina { width: 100%; }
   .acciones-pagina .btn { flex: 1 1 auto; }
+  .acciones-pagina form { flex: 1 1 100%; display: flex; }
   .bloque-movil { width: 100%; }
   /* Pagos y participantes: cada fila como una tarjeta que no se sale de la pantalla */
   .tarjetas-movil, .tarjetas-movil tbody { display: block; width: 100%; }

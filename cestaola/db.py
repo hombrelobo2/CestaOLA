@@ -55,6 +55,8 @@ DEFAULTS = {
     "mano": "[]",                 # [{"nombre": "Luis"}, ...]
     "prefijo": "CESTA",
     "max_por_compra": "50",
+    "telegram_token": "",
+    "telegram_chats": "",          # IDs separados por comas (personas o grupos)
     "fecha_sorteo": "",
     "estado": "abierta",          # abierta | cerrada
     "publicar_ganadores": "0",

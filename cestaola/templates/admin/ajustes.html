@@ -52,7 +52,62 @@
     {% endfor %}
     </div>
     <div style="height:14px"></div>
+
+    <h3 style="margin-top:22px" id="telegram">🔔 Avisos por Telegram</h3>
+    <p class="ayuda" style="margin-top:-4px">Un mensaje cada vez que alguien reserve papeletas.
+      {% if aj.telegram_token and aj.telegram_chats %}<b style="color:var(--abeto)">Activados.</b>{% else %}Desactivados.{% endif %}</p>
+    <details class="plegable" style="margin-bottom:12px">
+      <summary>Cómo crear el bot (2 minutos)</summary>
+      <ol class="ayuda" style="margin:8px 0 0 18px; display:grid; gap:4px">
+        <li>En Telegram abre <b>@BotFather</b>, escribe <code>/newbot</code> y ponle un nombre (por ejemplo «Cesta OLA»).</li>
+        <li>Copia el <b>token</b> que te da y pégalo aquí debajo. Guarda los ajustes.</li>
+        <li>Abre el chat de tu bot y pulsa <b>Iniciar</b>. Para avisar a varios organizadores, crea un grupo, añade el bot y escribid algo.</li>
+        <li>Pulsa <b>Detectar chats</b> y luego <b>Enviar prueba</b>.</li>
+      </ol>
+    </details>
+    <div class="campo">
+      <label for="telegram_token">Token del bot</label>
+      <input type="password" id="telegram_token" name="telegram_token" maxlength="100" autocomplete="off"
+             placeholder="{{ '•••••••• guardado (déjalo vacío para mantenerlo)' if aj.telegram_token else '123456789:AA…' }}">
+      {% if aj.telegram_token %}<label style="font-weight:400; margin-top:6px"><input type="checkbox" name="telegram_quitar" value="1"> Quitar el token (desactiva los avisos)</label>{% endif %}
+    </div>
+    <div class="campo">
+      <label for="telegram_chats">Chats que reciben los avisos</label>
+      <input type="text" id="telegram_chats" name="telegram_chats" maxlength="300" value="{{ aj.telegram_chats }}" placeholder="Se rellena con «Detectar chats»">
+      <div class="ayuda">IDs separados por comas. Los de grupos empiezan por «-».</div>
+    </div>
+
     <button class="btn bloque-movil">💾 Guardar ajustes</button>
   </form>
+
+  <div class="tarjeta" style="margin-top:16px">
+    <h3>🔔 Telegram</h3>
+    <div class="botones acciones-pagina">
+      <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="tg_detectar">
+        <button class="btn sec" {{ 'disabled' if not aj.telegram_token }}>🔍 Detectar chats</button></form>
+      <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="tg_prueba">
+        <button class="btn sec" {{ 'disabled' if not (aj.telegram_token and aj.telegram_chats) }}>📨 Enviar prueba</button></form>
+    </div>
+    <p class="ayuda" style="margin-top:8px">Guarda primero el token con «Guardar ajustes».</p>
+  </div>
+
+  <div class="tarjeta" style="margin-top:16px" id="copias">
+    <h3>💾 Copia de seguridad</h3>
+    <p class="ayuda" style="margin-top:-4px">Todo en un .zip: participantes, pagos, lotes con sus fotos y ajustes (incluido el token de Telegram: guárdalo en sitio seguro).</p>
+    <a class="btn oro bloque-movil" href="{{ url_for('admin_copia') }}">⬇️ Descargar copia (.zip)</a>
+
+    <form method="post" action="{{ url_for('admin_importar') }}" enctype="multipart/form-data" style="margin-top:18px"
+          data-confirmar="Se van a SUSTITUIR todos los datos actuales por los de la copia. Lo de ahora se guardará en el servidor por si acaso. ¿Seguir?">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <label>Importar una copia</label>
+      <input type="file" id="copia" name="copia" accept=".zip,application/zip" class="oculto-accesible">
+      <label for="copia" class="btn sec bloque-movil" style="font-weight:600">📂 Elegir archivo .zip</label>
+      <span class="ayuda" id="copia-nombre"></span>
+      <label style="font-weight:400; display:flex; gap:8px; align-items:flex-start; margin:12px 0">
+        <input type="checkbox" name="confirmo" value="1" style="margin-top:4px">
+        <span>Entiendo que se <b>sustituyen todos los datos</b> actuales por los de la copia.</span></label>
+      <button class="btn bloque-movil">⬆️ Importar copia</button>
+    </form>
+  </div>
 </section>
 {% endblock %}

@@ -16,6 +16,8 @@ from flask import (Flask, Response, abort, flash, g, make_response, redirect,
 
 from . import db as D
 from . import pdfs
+from . import telegram
+from . import copias
 
 COOKIE = "cestaola_persona"
 FOTO_EXT = {"jpg", "jpeg", "png", "webp", "heic", "heif", "gif"}
@@ -192,6 +194,13 @@ def create_app(test_config=None):
             "VALUES (?, ?, ?, ?, ?, ?)",
             (persona_id, cantidad, aj["precio_cent"], pago["metodo"], pago["nombre"], pago["tel"]))
         db.commit()
+        importe = euros(cantidad * aj["precio_cent"])
+        telegram.enviar_en_segundo_plano(
+            aj["telegram_token"], aj["telegram_chats"],
+            telegram.mensaje_reserva(aj, persona["nombre"] if persona else nombre, cantidad, importe,
+                                     concepto(cur.lastrowid), pago,
+                                     url_externa("admin", estado="pendiente", quien=f"{pago['metodo']}|{pago['nombre']}"),
+                                     nueva_persona=not persona))
         resp = make_response(redirect(url_for("mi", token=token, nueva=cur.lastrowid)))
         resp.set_cookie(COOKIE, token, max_age=3600 * 24 * 400, httponly=True, samesite="Lax",
                         secure=app.config["SESSION_COOKIE_SECURE"])
@@ -488,7 +497,39 @@ def create_app(test_config=None):
     @solo_admin
     def admin_ajustes():
         if request.method == "POST":
-            if request.form.get("accion") == "estado":
+            accion = request.form.get("accion")
+            if accion == "tg_detectar":
+                tok = D.ajustes()["telegram_token"]
+                if not tok:
+                    flash("Primero guarda el token del bot.", "error")
+                else:
+                    ok, res = telegram.detectar_chats(tok)
+                    if not ok:
+                        flash(res, "error")
+                    elif not res["chats"]:
+                        flash(f"El bot {res['bot']} funciona, pero nadie le ha escrito todavía. Abre el chat con "
+                              f"{res['bot']} en Telegram, pulsa Iniciar (o añádelo a un grupo y escribe algo) y vuelve a pulsar Detectar.", "info")
+                    else:
+                        actuales = set(telegram.chats_de(D.ajustes()["telegram_chats"]))
+                        nuevos = [c for c in res["chats"] if c not in actuales]
+                        if nuevos:
+                            D.guardar_ajuste("telegram_chats", ", ".join(list(actuales) + nuevos))
+                            D.get_db().commit()
+                        lista = "; ".join(f"{v} → {k}" for k, v in res["chats"].items())
+                        flash(f"Bot {res['bot']}. Chats encontrados: {lista}. "
+                              + ("Añadidos a la lista; quita los que no quieras." if nuevos else "Ya estaban en la lista."), "ok")
+                return redirect(url_for("admin_ajustes") + "#telegram")
+            if accion == "tg_prueba":
+                aj = D.ajustes()
+                if not aj["telegram_token"] or not telegram.chats_de(aj["telegram_chats"]):
+                    flash("Falta el token o algún chat.", "error")
+                else:
+                    res = telegram.enviar(aj["telegram_token"], aj["telegram_chats"],
+                                          f"✅ <b>{aj['titulo']}</b>\nLos avisos de nuevas reservas llegarán a este chat.")
+                    for chat, ok, det in res:
+                        flash(f"Chat {chat}: " + ("mensaje enviado ✓" if ok else f"error: {det}"), "ok" if ok else "error")
+                return redirect(url_for("admin_ajustes") + "#telegram")
+            if accion == "estado":
                 D.guardar_ajuste("estado", "cerrada" if request.form.get("valor") == "cerrada" else "abierta")
                 D.get_db().commit()
                 flash("Estado de la venta actualizado.", "ok")
@@ -510,6 +551,12 @@ def create_app(test_config=None):
             mano = [{"nombre": " ".join(n.split())[:40]} for n in request.form.getlist("mano_nombre") if n.strip()]
             D.guardar_ajuste("bizum", json.dumps(bizum, ensure_ascii=False))
             D.guardar_ajuste("mano", json.dumps(mano, ensure_ascii=False))
+            nuevo_token = (request.form.get("telegram_token") or "").strip()
+            if request.form.get("telegram_quitar"):
+                D.guardar_ajuste("telegram_token", "")
+            elif nuevo_token:
+                D.guardar_ajuste("telegram_token", nuevo_token[:100])
+            D.guardar_ajuste("telegram_chats", ", ".join(telegram.chats_de(request.form.get("telegram_chats")))[:300])
             prefijo = "".join(ch for ch in (request.form.get("prefijo") or "CESTA").upper() if ch.isalnum())[:10]
             D.guardar_ajuste("prefijo", prefijo or "CESTA")
             D.guardar_ajuste("max_por_compra", max(1, min(500, request.form.get("max_por_compra", type=int) or 50)))
@@ -539,6 +586,30 @@ def create_app(test_config=None):
     def admin_lotes_pdf():
         return enviar_pdf(pdfs.pdf_lotes_sobres(D.ajustes(), D.premios(),
                                                 os.path.join(app.config["DATA_DIR"], "fotos")), "lotes-sobres")
+
+    @app.get("/admin/copia.zip")
+    @solo_admin
+    def admin_copia():
+        nombre = f"cestaola-copia-{datetime.now().strftime('%Y%m%d-%H%M')}.zip"
+        return Response(copias.exportar(app.config["DATA_DIR"]), mimetype="application/zip",
+                        headers={"Content-Disposition": f"attachment; filename={nombre}",
+                                 "Cache-Control": "no-store"})
+
+    @app.post("/admin/importar")
+    @solo_admin
+    def admin_importar():
+        f = request.files.get("copia")
+        if not f or not f.filename:
+            flash("Elige el archivo .zip de la copia.", "error")
+        elif request.form.get("confirmo") != "1":
+            flash("Marca la casilla para confirmar que quieres sustituir todos los datos.", "error")
+        else:
+            ok, msg = copias.importar(app.config["DATA_DIR"], f.stream)
+            if ok:
+                D.init_db(app)          # adapta copias de versiones anteriores
+                g.pop("aj", None)
+            flash(msg, "ok" if ok else "error")
+        return redirect(url_for("admin_ajustes") + "#copias")
 
     @app.get("/admin/exportar.csv")
     @solo_admin

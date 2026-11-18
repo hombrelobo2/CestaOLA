@@ -19,6 +19,8 @@ Los organizadores, desde `/admin`:
 - El día del sorteo apuntan quién ha ganado cada lote (o usan el **sorteo digital ponderado** si no hay bolsa) y lo **publican** en la web.
 - Imprimen el **PDF de lotes para sobres**: 3 por A4 vertical, con foto, nombre y descripción, para recortar y meter cada uno en su sobre.
 - Descargan un **CSV** con todos los pagos.
+- Reciben un **aviso por Telegram** con cada reserva nueva (a una persona o a un grupo de organizadores).
+- **Exportan e importan** todos los datos (base de datos y fotos) en un `.zip` desde Ajustes.
 
 <p align="center">
   <img src="docs/movil-inicio.png" width="240" alt="Portada en el móvil">
@@ -99,11 +101,21 @@ y `systemctl restart cestaola`.
 
 Si dos personas se llaman igual, el panel te avisa ⚠ y puedes editar el nombre (por ejemplo, "Luis G." y "Luis M.").
 
+## 🔔 Avisos por Telegram
+
+1. En Telegram, abre **@BotFather**, escribe `/newbot` y copia el **token**.
+2. En **Ajustes → Avisos por Telegram**, pega el token y pulsa *Guardar ajustes*.
+3. Abre el chat del bot y pulsa **Iniciar** (o añádelo a un grupo de organizadores y escribid algo).
+4. Pulsa **Detectar chats** y luego **Enviar prueba**.
+
+Cada reserva llega con su concepto, nombre, papeletas, importe, a quién paga y un enlace a los pendientes de esa persona.
+
 ## 🔧 Mantenimiento
 
 ```bash
 bash /opt/cestaola/deploy/actualizar.sh   # actualizar a la última versión
 bash /opt/cestaola/deploy/copia.sh        # copia de seguridad en /root
+# (o desde el panel: Ajustes → Copia de seguridad → Descargar / Importar)
 journalctl -u cestaola -f                 # ver el registro
 ```
 

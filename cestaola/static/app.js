@@ -81,6 +81,13 @@
     });
   });
 
+  // Nombre del archivo de copia elegido
+  var copia = document.getElementById('copia');
+  if (copia) copia.addEventListener('change', function () {
+    var n = document.getElementById('copia-nombre');
+    if (n && copia.files[0]) n.textContent = '✓ ' + copia.files[0].name;
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });
