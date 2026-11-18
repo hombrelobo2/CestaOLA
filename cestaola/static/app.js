@@ -52,7 +52,13 @@
       var url = b.dataset.compartirPdf, nombre = b.dataset.nombre || 'resguardo.pdf', texto = b.dataset.texto || '';
       var original = b.textContent; b.textContent = '…';
       fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now(), { credentials: 'same-origin' })
-        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          // El nombre del archivo lo decide el servidor (Content-Disposition), igual al descargar que al compartir
+          var cd = r.headers.get('Content-Disposition') || '', m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+          if (m) { try { nombre = decodeURIComponent(m[1]); } catch (e) { nombre = m[1]; } }
+          return r.blob();
+        })
         .then(function (blob) {
           var f = new File([blob], nombre, { type: 'application/pdf' });
           if (navigator.canShare && navigator.canShare({ files: [f] })) {

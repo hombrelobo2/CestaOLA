@@ -110,7 +110,9 @@ def test_flujo_completo():
     assert "a <b>Marta</b>" in pub.get(enlace.split("?")[0]).text
     assert "/mi/" + token in r.headers["Location"]
     r = pub.get(f"/mi/{token}/resguardo/1")
-    assert r.data[:4] == b"%PDF" and "resguardo-OLA-0001" in r.headers["Content-Disposition"]
+    assert r.data[:4] == b"%PDF"
+    assert "resguardo-Maria-Jose-Fernandez-de-la-Vega-OLA-0001.pdf" in r.headers["Content-Disposition"]
+    assert "filename*=UTF-8''resguardo-Mar%C3%ADa-Jos%C3%A9-Fern%C3%A1ndez-de-la-Vega-OLA-0001.pdf" in r.headers["Content-Disposition"]
     open(os.path.join(tmp, "resguardo.pdf"), "wb").write(r.data)
     assert pub.get("/mi/otro/resguardo/1").status_code == 404
     # la portada lo reconoce por cookie
@@ -137,7 +139,7 @@ def test_flujo_completo():
     assert c.get(m.group(1)).data[:4] == b"%PDF"
     assert "Descargar resguardo" not in c.get("/admin?estado=todas").text   # solo se muestra una vez
     r = pub.get(f"/mi/{token}/resguardo")          # resumen de varias reservas
-    assert r.data[:4] == b"%PDF" and "resguardo-Mar" in r.headers["Content-Disposition"]
+    assert r.data[:4] == b"%PDF" and "Fern%C3%A1ndez-de-la-Vega-resumen.pdf" in r.headers["Content-Disposition"]
     open(os.path.join(tmp, "resguardo-total.pdf"), "wb").write(r.data)
     assert "Resguardo de todo" in pub.get(f"/mi/{token}").text
     assert c.get("/admin").text.count("🔗 Enlace") >= 3

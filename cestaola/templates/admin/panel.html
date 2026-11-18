@@ -21,7 +21,6 @@
     <div class="botones">
       <a class="btn verde peq" href="{{ url_for('resguardo', token=ultima.token, cid=ultima.id, t=ahora()) }}" target="_blank">📄 Descargar resguardo</a>
       <button class="btn sec peq" type="button" data-compartir-pdf="{{ url_for('resguardo', token=ultima.token, cid=ultima.id) }}"
-              data-nombre="resguardo-{{ concepto(ultima.id) }}.pdf"
               data-texto="Tu resguardo del sorteo ({{ concepto(ultima.id) }}). Tus papeletas: {{ url_mi(ultima.token) }}">📤 Enviar resguardo</button>
       <button class="btn sec peq" type="button" data-copiar="{{ url_mi(ultima.token) }}">🔗 Copiar su enlace</button>
     </div>
@@ -83,7 +82,6 @@
             {% set volver = url_for('admin', estado=filtro, quien=quien) %}
             <a class="btn sec peq" href="{{ url_for('resguardo', token=c.token, cid=c.id, t=ahora()) }}" target="_blank">📄 Resguardo</a>
             <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo', token=c.token, cid=c.id) }}"
-                    data-nombre="resguardo-{{ concepto(c.id) }}.pdf"
                     data-texto="Tu resguardo del sorteo ({{ concepto(c.id) }}). Tus papeletas: {{ url_mi(c.token) }}">📤</button>
             {% if c.estado != 'confirmado' %}
             <form method="post" action="{{ url_for('admin_compra', cid=c.id, accion='confirmar') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="volver" value="{{ volver }}"><button class="btn verde peq">✓ Cobrado</button></form>
@@ -161,7 +159,6 @@
           {% if p.n_compras %}
           <a class="btn sec peq" href="{{ url_for('resguardo_total', token=p.token, t=ahora()) }}" target="_blank">📄 Resguardo</a>
           <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo_total', token=p.token) }}"
-                  data-nombre="resguardo-{{ p.nombre|replace(' ', '-') }}.pdf"
                   data-texto="Tu resguardo del sorteo. Tus papeletas: {{ url_mi(p.token) }}">📤</button>
           {% endif %}
           <button class="btn sec peq" type="button" data-copiar="{{ url_mi(p.token) }}">🔗 Enlace</button>

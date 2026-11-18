@@ -6,8 +6,11 @@ import hmac
 import io
 import json
 import os
+import re
 import secrets
+import unicodedata
 import uuid
+from urllib.parse import quote
 from datetime import datetime
 from functools import wraps
 
@@ -133,6 +136,11 @@ def create_app(test_config=None):
         return f"{g.aj['prefijo']}-{compra_id:04d}"
 
     app.jinja_env.globals["concepto"] = concepto
+
+    def nombre_resguardo(nombre, sufijo):
+        """Siempre igual: resguardo-Nombre-Apellido-CESTA-0017 (o ...-resumen si junta varias reservas)."""
+        base = "-".join(re.sub(r"[^\w]+", " ", nombre).split())[:50] or "participante"
+        return f"resguardo-{base}-{sufijo}"
     app.jinja_env.globals["ahora"] = lambda: datetime.now().strftime("%H%M%S")
 
     def solo_admin(f):
@@ -281,7 +289,7 @@ def create_app(test_config=None):
         }
         datos = pdfs.pdf_resguardo(D.ajustes(), persona, resumen, "RESUMEN",
                                    url_externa("mi", token=token), conf)
-        return enviar_pdf(datos, "resguardo-" + "".join(ch for ch in persona["nombre"] if ch.isalnum())[:30])
+        return enviar_pdf(datos, nombre_resguardo(persona["nombre"], "resumen"), con_hora=False)
 
     @app.get("/mi/<token>/resguardo/<int:cid>")
     def resguardo(token, cid):
@@ -296,7 +304,7 @@ def create_app(test_config=None):
                            (persona["id"],)).fetchone()[0]
         datos = pdfs.pdf_resguardo(D.ajustes(), persona, compra, concepto(cid),
                                    url_externa("mi", token=token), total)
-        return enviar_pdf(datos, f"resguardo-{concepto(cid)}")
+        return enviar_pdf(datos, nombre_resguardo(persona["nombre"], concepto(cid)), con_hora=False)
 
     @app.post("/mi/<token>/cambiar-pago/<int:cid>")
     def cambiar_pago(token, cid):
@@ -609,12 +617,13 @@ def create_app(test_config=None):
             msgs += [("ok" if "✓" in m else "error", m) for m in res]
         return msgs
 
-    def enviar_pdf(datos, nombre):
-        """Sin caché y con nombre único: los visores de PDF del móvil reabren
-        el archivo antiguo si se descarga dos veces con el mismo nombre."""
-        fichero = f"{nombre}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+    def enviar_pdf(datos, nombre, con_hora=True):
+        """Sin caché. Los PDF de imprimir llevan la hora en el nombre: los visores del móvil
+        reabren el archivo antiguo si se descarga dos veces con el mismo nombre."""
+        fichero = (f"{nombre}-{datetime.now().strftime('%Y%m%d-%H%M%S')}" if con_hora else nombre) + ".pdf"
+        ascii_ = unicodedata.normalize("NFKD", fichero).encode("ascii", "ignore").decode() or "documento.pdf"
         return Response(datos, mimetype="application/pdf", headers={
-            "Content-Disposition": f"inline; filename={fichero}",
+            "Content-Disposition": f"inline; filename=\"{ascii_}\"; filename*=UTF-8''{quote(fichero)}",
             "Cache-Control": "no-store, max-age=0",
             "Pragma": "no-cache",
         })
