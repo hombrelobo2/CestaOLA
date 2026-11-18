@@ -130,6 +130,8 @@ Los datos (base de datos SQLite y fotos) están en `/var/lib/cestaola`. Para emp
 
 ## 🧪 Desarrollo
 
+La versión está en el archivo `VERSION` y sale en el pie de la web junto al commit desplegado (enlazado a GitHub). Súbela al publicar cambios: `1.0.1` para arreglos, `1.1.0` para novedades.
+
 La guía visual se regenera con capturas reales de la app (necesita Playwright y Chrome, solo para documentación):
 
 ```bash

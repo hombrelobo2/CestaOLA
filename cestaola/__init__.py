@@ -20,6 +20,34 @@ from . import telegram
 from . import copias
 
 COOKIE = "cestaola_persona"
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def version():
+    """('1.0.0', '04241ac'). Lee VERSION y el commit desde .git sin ejecutar git
+    (el servicio corre con otro usuario y git se negaría por 'dubious ownership')."""
+    try:
+        num = open(os.path.join(RAIZ, "VERSION")).read().strip()
+    except OSError:
+        num = "?"
+    commit = ""
+    try:
+        git = os.path.join(RAIZ, ".git")
+        head = open(os.path.join(git, "HEAD")).read().strip()
+        if head.startswith("ref: "):
+            ref = head[5:]
+            ruta = os.path.join(git, ref)
+            if os.path.exists(ruta):
+                commit = open(ruta).read().strip()
+            else:
+                for linea in open(os.path.join(git, "packed-refs")):
+                    if linea.strip().endswith(" " + ref):
+                        commit = linea.split()[0]
+        else:
+            commit = head
+    except OSError:
+        pass
+    return num, commit[:7]
 FOTO_EXT = {"jpg", "jpeg", "png", "webp", "heic", "heif", "gif"}
 
 
@@ -69,6 +97,9 @@ def create_app(test_config=None):
     D.init_db(app)
     app.teardown_appcontext(D.close_db)
     app.jinja_env.filters["euros"] = euros
+    app.config["VERSION"], app.config["COMMIT"] = version()
+    app.jinja_env.globals["version"] = app.config["VERSION"]
+    app.jinja_env.globals["commit"] = app.config["COMMIT"]
 
     # ---------------------------------------------------------------- utilidades
     def csrf_token():

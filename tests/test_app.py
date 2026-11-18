@@ -33,6 +33,7 @@ def test_flujo_completo():
 
     r = c.get("/")
     assert r.status_code == 200
+    assert "Versión " + open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION")).read().strip() in r.text
     tok = _csrf(r.text)
 
     # Telegram: se capturan los envíos en lugar de llamar a la API

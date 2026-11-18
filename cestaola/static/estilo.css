@@ -333,4 +333,4 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .tarjetas-movil td:last-child form { display: inline; }
   .titulo-seccion form { width: 100%; display: flex; justify-content: center; gap: 8px; align-items: center; }
 }
-
+.pie .version { opacity: .75; font-variant-numeric: tabular-nums; }

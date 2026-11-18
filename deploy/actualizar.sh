@@ -7,4 +7,4 @@ git pull --ff-only
 .venv/bin/pip install -q -r requirements.txt
 bash /opt/cestaola/deploy/instalar-servicios.sh
 systemctl restart cestaola
-echo "✅ Actualizado a $(git log -1 --format='%h %s')"
+echo "✅ Actualizado a la versión $(cat VERSION) ($(git log -1 --format='%h %s'))"
