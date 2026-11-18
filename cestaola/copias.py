@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # CestaOLA · Code por Hombrelobo
 """Exportar e importar todos los datos (base de datos + fotos) en un .zip."""
+import hashlib
 import io
 import os
 import sqlite3
@@ -87,3 +88,25 @@ def importar(data_dir, fichero):
                 n_fotos += 1
     return True, (f"Copia importada: {n} reservas y {n_fotos} fotos. "
                   f"Lo que había antes está guardado en el servidor en copias/{os.path.basename(previa)}.")
+
+
+def resumen(data_dir):
+    con = sqlite3.connect(os.path.join(data_dir, "cestaola.db"))
+    n = con.execute("SELECT COUNT(*) FROM compras WHERE estado!='rechazado'").fetchone()[0]
+    p = con.execute("SELECT COALESCE(SUM(cantidad),0) FROM compras WHERE estado='confirmado'").fetchone()[0]
+    con.close()
+    return n, p
+
+
+def huella(data_dir):
+    """Cambia si cambian los datos o las fotos (para no mandar copias repetidas)."""
+    h = hashlib.sha256()
+    con = sqlite3.connect(os.path.join(data_dir, "cestaola.db"))
+    for linea in con.iterdump():
+        if "telegram_" not in linea:      # la huella y los ajustes de Telegram no cuentan como cambios
+            h.update(linea.encode())
+    con.close()
+    fotos = os.path.join(data_dir, "fotos")
+    for f in sorted(os.listdir(fotos)):
+        h.update(f.encode())
+    return h.hexdigest()

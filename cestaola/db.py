@@ -57,6 +57,8 @@ DEFAULTS = {
     "max_por_compra": "50",
     "telegram_token": "",
     "telegram_chats": "",          # IDs separados por comas (personas o grupos)
+    "telegram_copia": "0",         # 1 = enviar la copia .zip cada noche
+    "telegram_copia_hash": "",     # huella de la última copia enviada (no se repite si no hay cambios)
     "fecha_sorteo": "",
     "estado": "abierta",          # abierta | cerrada
     "publicar_ganadores": "0",

@@ -497,37 +497,9 @@ def create_app(test_config=None):
     @solo_admin
     def admin_ajustes():
         if request.method == "POST":
-            accion = request.form.get("accion")
-            if accion == "tg_detectar":
-                tok = D.ajustes()["telegram_token"]
-                if not tok:
-                    flash("Primero guarda el token del bot.", "error")
-                else:
-                    ok, res = telegram.detectar_chats(tok)
-                    if not ok:
-                        flash(res, "error")
-                    elif not res["chats"]:
-                        flash(f"El bot {res['bot']} funciona, pero nadie le ha escrito todavía. Abre el chat con "
-                              f"{res['bot']} en Telegram, pulsa Iniciar (o añádelo a un grupo y escribe algo) y vuelve a pulsar Detectar.", "info")
-                    else:
-                        actuales = set(telegram.chats_de(D.ajustes()["telegram_chats"]))
-                        nuevos = [c for c in res["chats"] if c not in actuales]
-                        if nuevos:
-                            D.guardar_ajuste("telegram_chats", ", ".join(list(actuales) + nuevos))
-                            D.get_db().commit()
-                        lista = "; ".join(f"{v} → {k}" for k, v in res["chats"].items())
-                        flash(f"Bot {res['bot']}. Chats encontrados: {lista}. "
-                              + ("Añadidos a la lista; quita los que no quieras." if nuevos else "Ya estaban en la lista."), "ok")
-                return redirect(url_for("admin_ajustes") + "#telegram")
-            if accion == "tg_prueba":
-                aj = D.ajustes()
-                if not aj["telegram_token"] or not telegram.chats_de(aj["telegram_chats"]):
-                    flash("Falta el token o algún chat.", "error")
-                else:
-                    res = telegram.enviar(aj["telegram_token"], aj["telegram_chats"],
-                                          f"✅ <b>{aj['titulo']}</b>\nLos avisos de nuevas reservas llegarán a este chat.")
-                    for chat, ok, det in res:
-                        flash(f"Chat {chat}: " + ("mensaje enviado ✓" if ok else f"error: {det}"), "ok" if ok else "error")
+            accion = request.form.get("accion") or ""
+            if accion.startswith("tg_"):
+                session["tg_msgs"] = acciones_telegram(accion)
                 return redirect(url_for("admin_ajustes") + "#telegram")
             if accion == "estado":
                 D.guardar_ajuste("estado", "cerrada" if request.form.get("valor") == "cerrada" else "abierta")
@@ -551,19 +523,60 @@ def create_app(test_config=None):
             mano = [{"nombre": " ".join(n.split())[:40]} for n in request.form.getlist("mano_nombre") if n.strip()]
             D.guardar_ajuste("bizum", json.dumps(bizum, ensure_ascii=False))
             D.guardar_ajuste("mano", json.dumps(mano, ensure_ascii=False))
-            nuevo_token = (request.form.get("telegram_token") or "").strip()
-            if request.form.get("telegram_quitar"):
-                D.guardar_ajuste("telegram_token", "")
-            elif nuevo_token:
-                D.guardar_ajuste("telegram_token", nuevo_token[:100])
-            D.guardar_ajuste("telegram_chats", ", ".join(telegram.chats_de(request.form.get("telegram_chats")))[:300])
             prefijo = "".join(ch for ch in (request.form.get("prefijo") or "CESTA").upper() if ch.isalnum())[:10]
             D.guardar_ajuste("prefijo", prefijo or "CESTA")
             D.guardar_ajuste("max_por_compra", max(1, min(500, request.form.get("max_por_compra", type=int) or 50)))
             D.get_db().commit()
             flash("Ajustes guardados.", "ok")
             return redirect(url_for("admin_ajustes"))
-        return render_template("admin/ajustes.html")
+        return render_template("admin/ajustes.html", tg_msgs=session.pop("tg_msgs", []))
+
+    def acciones_telegram(accion):
+        """Guarda los datos de Telegram del formulario y hace la acción pedida.
+        Devuelve mensajes [(tipo, texto)] para enseñarlos junto a los botones."""
+        f = request.form
+        nuevo = (f.get("telegram_token") or "").strip().replace(" ", "")
+        if f.get("telegram_quitar"):
+            D.guardar_ajuste("telegram_token", "")
+        elif nuevo:
+            D.guardar_ajuste("telegram_token", nuevo[:100])
+        D.guardar_ajuste("telegram_chats", ", ".join(telegram.chats_de(f.get("telegram_chats")))[:300])
+        D.guardar_ajuste("telegram_copia", "1" if f.get("telegram_copia") else "0")
+        D.get_db().commit()
+        aj = D.ajustes()
+        msgs = []
+        if accion == "tg_guardar":
+            msgs.append(("ok", "Ajustes de Telegram guardados."))
+        elif not aj["telegram_token"]:
+            msgs.append(("error", "Falta el token del bot. Pégalo arriba (te lo da @BotFather)."))
+        elif accion == "tg_detectar":
+            ok, res = telegram.detectar_chats(aj["telegram_token"])
+            if not ok:
+                msgs.append(("error", res))
+            elif not res["chats"]:
+                msgs.append(("info", f"El bot {res['bot']} funciona, pero no le ha llegado ningún mensaje todavía. "
+                                     f"En Telegram abre {res['bot']}, pulsa Iniciar (o escribe /start) y vuelve a pulsar "
+                                     f"Detectar chats. En un grupo, escribe /start@{res['bot'][1:]}."))
+            else:
+                actuales = telegram.chats_de(aj["telegram_chats"])
+                nuevos = [c for c in res["chats"] if c not in actuales]
+                if nuevos:
+                    D.guardar_ajuste("telegram_chats", ", ".join(actuales + nuevos))
+                    D.get_db().commit()
+                for cid, nombre in res["chats"].items():
+                    msgs.append(("ok", f"{nombre} → {cid}" + (" (añadido)" if cid in nuevos else " (ya estaba)")))
+                msgs.append(("info", "Ahora pulsa «Enviar prueba». Quita de la lista los chats que no quieras."))
+        elif not telegram.chats_de(aj["telegram_chats"]):
+            msgs.append(("error", "No hay ningún chat. Pulsa «Detectar chats» primero."))
+        elif accion == "tg_prueba":
+            for chat, ok, det in telegram.enviar(aj["telegram_token"], aj["telegram_chats"],
+                                                 f"✅ <b>{aj['titulo']}</b>\nLos avisos de nuevas reservas llegarán a este chat."):
+                msgs.append(("ok" if ok else "error", f"Chat {chat}: " + ("mensaje enviado ✓" if ok else f"error: {det}")))
+        elif accion == "tg_copia":
+            from .nocturna import enviar_copia
+            _, res = enviar_copia(app.config["DATA_DIR"], forzar=True)
+            msgs += [("ok" if "✓" in m else "error", m) for m in res]
+        return msgs
 
     def enviar_pdf(datos, nombre):
         """Sin caché y con nombre único: los visores de PDF del móvil reabren

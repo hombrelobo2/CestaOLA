@@ -1,0 +1,17 @@
+[Unit]
+Description=CestaOLA - copia nocturna por Telegram
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cestaola
+Group=cestaola
+WorkingDirectory=/opt/cestaola
+EnvironmentFile=/etc/cestaola/cestaola.env
+ExecStart=/opt/cestaola/.venv/bin/python -m cestaola.nocturna
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cestaola

@@ -77,13 +77,22 @@ def test_flujo_completo():
     ta = _csrf(c.get("/admin/ajustes").text)
     c.post("/admin/ajustes", data={"_csrf": ta, "precio": "2,50", "titulo": "Cesta OLA 2026", "prefijo": "ola",
                                    "max_por_compra": "40", "bizum_nombre": ["Ana", "Pedro"],
-                                   "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"],
-                                   "telegram_token": "123:abc", "telegram_chats": ""})
+                                   "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"]})
     r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_detectar"}, follow_redirects=True)
-    assert "@cesta_bot" in r.text and "Organizadores" in r.text
-    assert "-222" in c.get("/admin/ajustes").text and "111" in c.get("/admin/ajustes").text
-    r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_prueba"}, follow_redirects=True)
+    assert "Falta el token" in r.text
+    # el token se escribe y se pulsa Detectar directamente (sin guardar antes)
+    r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_detectar", "telegram_token": "123:abc",
+                                       "telegram_chats": ""}, follow_redirects=True)
+    assert "Organizadores (group) → -222 (añadido)" in r.text and "Ana (private) → 111" in r.text
+    assert 'value="111, -222"' in c.get("/admin/ajustes").text
+    r = c.post("/admin/ajustes", data={"_csrf": ta, "accion": "tg_prueba", "telegram_chats": "111, -222"},
+               follow_redirects=True)
     assert r.text.count("mensaje enviado") == 2
+    # el formulario general no borra los datos de Telegram
+    c.post("/admin/ajustes", data={"_csrf": ta, "precio": "2,50", "titulo": "Cesta OLA 2026", "prefijo": "ola",
+                                   "max_por_compra": "40", "bizum_nombre": ["Ana", "Pedro"],
+                                   "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"]})
+    assert 'value="111, -222"' in c.get("/admin/ajustes").text
     c.get("/admin/salir")
     r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega",
                                      "cantidad": "3", "pago": "bizum:1"})
@@ -174,6 +183,25 @@ def test_flujo_completo():
                content_type="multipart/form-data", follow_redirects=True)
     assert "no es un .zip" in r.text
     assert pub.get("/admin/copia.zip").status_code == 302
+
+    # copia por Telegram (manual y nocturna)
+    docs = []
+    tg.enviar_documento = lambda token, chats, datos, nombre, texto="": (
+        docs.append((nombre, datos[:2], texto)) or [(c_, True, "") for c_ in tg.chats_de(chats)])
+    r = c.post("/admin/ajustes", data={"_csrf": tok, "accion": "tg_copia", "telegram_chats": "111, -222"},
+               follow_redirects=True)
+    assert r.text.count("copia enviada") == 2 and docs[-1][1] == b"PK" and "reservas" in docs[-1][2]
+    from cestaola import nocturna
+    with app.app_context():
+        assert nocturna.enviar_copia(tmp)[1] == ["La copia nocturna está desactivada en Ajustes."]
+    c.post("/admin/ajustes", data={"_csrf": tok, "accion": "tg_guardar", "telegram_chats": "111, -222",
+                                   "telegram_copia": "1"})
+    with app.app_context():
+        assert nocturna.enviar_copia(tmp)[1] == ["Sin cambios desde la última copia: no se envía."]
+    c.post("/admin/compra/2/nota", data={"_csrf": tok, "nota": "cambio"})
+    with app.app_context():
+        ok, msgs = nocturna.enviar_copia(tmp)
+        assert ok and len(msgs) == 2, msgs
 
     # cierre
     c.post("/admin/ajustes", data={"_csrf": tok, "accion": "estado", "valor": "cerrada"})

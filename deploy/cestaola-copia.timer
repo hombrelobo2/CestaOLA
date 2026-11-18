@@ -1,0 +1,10 @@
+[Unit]
+Description=CestaOLA - copia nocturna por Telegram (cada noche a las 03:00)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -110,6 +110,13 @@ Si dos personas se llaman igual, el panel te avisa ⚠ y puedes editar el nombre
 
 Cada reserva llega con su concepto, nombre, papeletas, importe, a quién paga y un enlace a los pendientes de esa persona.
 
+Marcando **«Enviar la copia de seguridad cada noche»**, a las 03:00 llega al chat el `.zip` con la base de datos y las fotos (solo si ha cambiado algo desde la última). Lo hace el temporizador `cestaola-copia.timer`, que instalan `install.sh` y `actualizar.sh`. Para probarlo a mano: botón **Enviar copia ahora**, o en el LXC:
+
+```bash
+sudo -u cestaola bash -c 'set -a; . /etc/cestaola/cestaola.env; cd /opt/cestaola && .venv/bin/python -m cestaola.nocturna --forzar'
+systemctl list-timers cestaola-copia.timer     # cuándo toca la próxima
+```
+
 ## 🔧 Mantenimiento
 
 ```bash

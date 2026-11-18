@@ -53,22 +53,30 @@
     </div>
     <div style="height:14px"></div>
 
-    <h3 style="margin-top:22px" id="telegram">🔔 Avisos por Telegram</h3>
-    <p class="ayuda" style="margin-top:-4px">Un mensaje cada vez que alguien reserve papeletas.
+    <button class="btn bloque-movil">💾 Guardar ajustes</button>
+  </form>
+
+  <form method="post" class="tarjeta" style="margin-top:16px; scroll-margin-top:120px" id="telegram">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h3>🔔 Avisos por Telegram</h3>
+    <p class="ayuda" style="margin-top:-4px">Un mensaje con cada reserva nueva y, si quieres, la copia de seguridad cada noche.
       {% if aj.telegram_token and aj.telegram_chats %}<b style="color:var(--abeto)">Activados.</b>{% else %}Desactivados.{% endif %}</p>
-    <details class="plegable" style="margin-bottom:12px">
+
+    {% if tg_msgs %}<div class="avisos" style="margin:10px 0 14px">{% for tipo, m in tg_msgs %}<div class="aviso {{ tipo }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+
+    <details class="plegable" style="margin-bottom:12px" {{ 'open' if not aj.telegram_token }}>
       <summary>Cómo crear el bot (2 minutos)</summary>
       <ol class="ayuda" style="margin:8px 0 0 18px; display:grid; gap:4px">
         <li>En Telegram abre <b>@BotFather</b>, escribe <code>/newbot</code> y ponle un nombre (por ejemplo «Cesta OLA»).</li>
-        <li>Copia el <b>token</b> que te da y pégalo aquí debajo. Guarda los ajustes.</li>
-        <li>Abre el chat de tu bot y pulsa <b>Iniciar</b>. Para avisar a varios organizadores, crea un grupo, añade el bot y escribid algo.</li>
+        <li>Copia el <b>token</b> que te da y pégalo aquí debajo.</li>
+        <li>Abre el chat de tu bot y pulsa <b>Iniciar</b>. Para avisar a varios organizadores, crea un grupo, añade el bot y escribid <code>/start</code>.</li>
         <li>Pulsa <b>Detectar chats</b> y luego <b>Enviar prueba</b>.</li>
       </ol>
     </details>
     <div class="campo">
       <label for="telegram_token">Token del bot</label>
       <input type="password" id="telegram_token" name="telegram_token" maxlength="100" autocomplete="off"
-             placeholder="{{ '•••••••• guardado (déjalo vacío para mantenerlo)' if aj.telegram_token else '123456789:AA…' }}">
+             placeholder="{{ '•••••••• guardado (vacío = mantener)' if aj.telegram_token else '123456789:AA…' }}">
       {% if aj.telegram_token %}<label style="font-weight:400; margin-top:6px"><input type="checkbox" name="telegram_quitar" value="1"> Quitar el token (desactiva los avisos)</label>{% endif %}
     </div>
     <div class="campo">
@@ -76,20 +84,17 @@
       <input type="text" id="telegram_chats" name="telegram_chats" maxlength="300" value="{{ aj.telegram_chats }}" placeholder="Se rellena con «Detectar chats»">
       <div class="ayuda">IDs separados por comas. Los de grupos empiezan por «-».</div>
     </div>
-
-    <button class="btn bloque-movil">💾 Guardar ajustes</button>
-  </form>
-
-  <div class="tarjeta" style="margin-top:16px">
-    <h3>🔔 Telegram</h3>
+    <label style="font-weight:400; display:flex; gap:8px; align-items:flex-start; margin-bottom:14px">
+      <input type="checkbox" name="telegram_copia" value="1" {{ 'checked' if aj.telegram_copia == '1' }} style="margin-top:4px">
+      <span>💾 <b>Enviar la copia de seguridad cada noche</b> (a las 03:00, solo si ha cambiado algo).</span></label>
     <div class="botones acciones-pagina">
-      <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="tg_detectar">
-        <button class="btn sec" {{ 'disabled' if not aj.telegram_token }}>🔍 Detectar chats</button></form>
-      <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="tg_prueba">
-        <button class="btn sec" {{ 'disabled' if not (aj.telegram_token and aj.telegram_chats) }}>📨 Enviar prueba</button></form>
+      <button class="btn" name="accion" value="tg_guardar">💾 Guardar</button>
+      <button class="btn sec" name="accion" value="tg_detectar">🔍 Detectar chats</button>
+      <button class="btn sec" name="accion" value="tg_prueba">📨 Enviar prueba</button>
+      <button class="btn sec" name="accion" value="tg_copia">📦 Enviar copia ahora</button>
     </div>
-    <p class="ayuda" style="margin-top:8px">Guarda primero el token con «Guardar ajustes».</p>
-  </div>
+    <p class="ayuda" style="margin-top:8px">Cada botón guarda también lo que hayas escrito arriba.</p>
+  </form>
 
   <div class="tarjeta" style="margin-top:16px" id="copias">
     <h3>💾 Copia de seguridad</h3>

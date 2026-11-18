@@ -57,6 +57,7 @@ sed "s/__PUERTO__/$PUERTO/" "$APP/deploy/cestaola.service" > /etc/systemd/system
 systemctl daemon-reload
 systemctl enable --now cestaola >/dev/null
 systemctl restart cestaola
+bash "$APP/deploy/instalar-servicios.sh"
 sleep 2
 
 IP=$(hostname -I | awk '{print $1}')

@@ -5,6 +5,7 @@ import html
 import json
 import logging
 import threading
+import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -27,6 +28,41 @@ def _llamar(token, metodo, datos=None, timeout=8):
             return {"ok": False, "description": f"HTTP {e.code}"}
     except Exception as e:  # sin red, DNS, timeout...
         return {"ok": False, "description": str(e)}
+
+
+def _multipart(campos, nombre_campo, nombre_fichero, datos, tipo):
+    limite = "----cestaola" + uuid.uuid4().hex
+    partes = []
+    for k, v in campos.items():
+        partes.append(f'--{limite}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
+    partes.append(f'--{limite}\r\nContent-Disposition: form-data; name="{nombre_campo}"; filename="{nombre_fichero}"\r\n'
+                  f'Content-Type: {tipo}\r\n\r\n'.encode() + datos + b"\r\n")
+    partes.append(f"--{limite}--\r\n".encode())
+    return b"".join(partes), f"multipart/form-data; boundary={limite}"
+
+
+def enviar_documento(token, chats, datos, nombre_fichero, texto=""):
+    """Manda un archivo (p. ej. la copia .zip) a todos los chats. Devuelve lista de (chat, ok, detalle)."""
+    resultados = []
+    for chat in chats_de(chats):
+        cuerpo, tipo = _multipart({"chat_id": chat, "caption": texto, "parse_mode": "HTML"},
+                                  "document", nombre_fichero, datos, "application/zip")
+        req = urllib.request.Request(API.format(token=token, metodo="sendDocument"), data=cuerpo,
+                                     headers={"Content-Type": tipo})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                res = json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                res = json.loads(e.read().decode())
+            except Exception:
+                res = {"ok": False, "description": f"HTTP {e.code}"}
+        except Exception as e:
+            res = {"ok": False, "description": str(e)}
+        resultados.append((chat, bool(res.get("ok")), res.get("description", "")))
+        if not res.get("ok"):
+            log.warning("Telegram: no se pudo enviar el archivo a %s: %s", chat, res.get("description"))
+    return resultados
 
 
 def chats_de(texto):
@@ -56,12 +92,15 @@ def detectar_chats(token):
     yo = _llamar(token, "getMe")
     if not yo.get("ok"):
         return False, "El token no es válido: " + (yo.get("description") or "error desconocido")
-    r = _llamar(token, "getUpdates", {"timeout": "0", "allowed_updates": '["message","my_chat_member"]'})
+    r = _llamar(token, "getUpdates", {"timeout": "0"})
+    if not r.get("ok") and "webhook" in (r.get("description") or "").lower():
+        _llamar(token, "deleteWebhook", {})          # si el bot tenía un webhook, getUpdates no funciona
+        r = _llamar(token, "getUpdates", {"timeout": "0"})
     if not r.get("ok"):
         return False, r.get("description", "No se pudieron leer los mensajes del bot")
     vistos = {}
     for u in r.get("result", []):
-        for clave in ("message", "my_chat_member", "channel_post"):
+        for clave in ("message", "edited_message", "my_chat_member", "channel_post"):
             chat = (u.get(clave) or {}).get("chat")
             if chat:
                 nombre = chat.get("title") or " ".join(filter(None, [chat.get("first_name"), chat.get("last_name")]))
