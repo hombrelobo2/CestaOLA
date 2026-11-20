@@ -190,6 +190,9 @@ def test_flujo_completo():
     assert "Enhorabuena" in pub.get(enlace).text
     assert "Ya tenemos premiados" in pub.get("/").text
 
+    # el formulario de tickets solo ofrece lotes sin ticket (salvo «mostrar todos»)
+    r = c.get("/admin/premios")
+    assert 'id="tk-todos"' not in r.text and r.text.count('name="premio_id"') == 2
     # tickets de compra: subir JPG y PDF, rechazar otros, ver, marcar lote, exportar, borrar
     pdf_falso = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
     r = c.post("/admin/tickets", data={"_csrf": tok, "descripcion": "Carrefour embutidos", "importe": "45,30",
@@ -201,13 +204,22 @@ def test_flujo_completo():
                content_type="multipart/form-data", follow_redirects=True)
     assert "no es JPG, PNG ni PDF" in r.text
     assert len(os.listdir(os.path.join(tmp, "tickets"))) == 2
+    r = c.get("/admin/premios")
+    assert 'id="tk-todos"' in r.text and '<label class="ya-tiene" hidden>' in r.text
+    # un ticket para varios lotes a la vez (y un id inexistente que se ignora)
+    c.post("/admin/tickets", data={"_csrf": tok, "descripcion": "Bodega", "premio_id": ["1", "2", "999"], "marcar": "1",
+                                   "tickets": [(io.BytesIO(pdf_falso), "bodega.pdf")]}, content_type="multipart/form-data")
+    r = c.get("/admin/premios")
+    assert "Con ticket: <b>2 de 2</b>" in r.text and " + " in r.text
+    c.post("/admin/tickets/3/borrar", data={"_csrf": tok})
+    c.post("/admin/premios/2/ticket", data={"_csrf": tok})
     assert c.get("/admin/tickets/1").data[:3] == b"\xff\xd8\xff"
     assert c.get("/admin/tickets/2").data[:4] == b"%PDF"
     assert pub.get("/admin/tickets/1").status_code == 302          # no es público
     assert "Ticket de compra guardado" in pub.get("/").text        # lote 1 marcado al subir
     c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # marca manual
     r = c.get("/admin/premios")
-    assert "Con ticket: <b>2 de 2</b>" in r.text
+    assert "Con ticket: <b>2 de 2</b>" in r.text and "Todos los lotes tienen ya su ticket" in r.text
     c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # y desmarcar
     assert "Con ticket: <b>1 de 2</b>" in c.get("/admin/premios").text
     r = c.get("/admin/tickets.zip")

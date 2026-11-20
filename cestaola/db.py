@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS tickets (
     subido TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
+-- Un ticket puede cubrir varios lotes (y un lote tener varios tickets)
+CREATE TABLE IF NOT EXISTS ticket_premios (
+    ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    premio_id INTEGER NOT NULL REFERENCES premios(id) ON DELETE CASCADE,
+    PRIMARY KEY (ticket_id, premio_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_compras_persona ON compras(persona_id);
 """
 
@@ -103,6 +110,9 @@ def init_db(app):
     # Migraciones de versiones anteriores
     if "con_ticket" not in {r[1] for r in con.execute("PRAGMA table_info(premios)")}:
         con.execute("ALTER TABLE premios ADD COLUMN con_ticket INTEGER NOT NULL DEFAULT 0")
+    # tickets de la 1.2.0 (un solo lote) -> tabla de vínculos
+    con.execute("INSERT OR IGNORE INTO ticket_premios (ticket_id, premio_id) "
+                "SELECT t.id, t.premio_id FROM tickets t JOIN premios p ON p.id = t.premio_id")
     if "telefono" not in {r[1] for r in con.execute("PRAGMA table_info(personas)")}:
         con.execute("ALTER TABLE personas ADD COLUMN telefono TEXT NOT NULL DEFAULT ''")
     cols = {r[1] for r in con.execute("PRAGMA table_info(compras)")}
@@ -239,7 +249,9 @@ def resumen():
 
 def tickets():
     return get_db().execute(
-        "SELECT t.*, p.nombre AS lote, p.orden AS lote_orden FROM tickets t "
-        "LEFT JOIN premios p ON p.id = t.premio_id ORDER BY t.subido, t.id"
+        "SELECT t.*, (SELECT group_concat(nombre, ' + ') FROM "
+        "  (SELECT p.nombre FROM ticket_premios tp JOIN premios p ON p.id = tp.premio_id "
+        "   WHERE tp.ticket_id = t.id ORDER BY p.orden, p.id)) AS lote "
+        "FROM tickets t ORDER BY t.subido, t.id"
     ).fetchall()
 

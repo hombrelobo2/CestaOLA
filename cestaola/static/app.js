@@ -101,6 +101,15 @@
     if (n) n.textContent = tk.files.length ? '✓ ' + Array.prototype.map.call(tk.files, function (f) { return f.name; }).join(', ') : '';
   });
 
+  // Tickets: mostrar u ocultar los lotes que ya tienen ticket
+  var todos = document.getElementById('tk-todos');
+  if (todos) todos.addEventListener('change', function () {
+    var caja = document.getElementById('tk-lotes');
+    caja.querySelectorAll('label.ya-tiene').forEach(function (l) { l.hidden = !todos.checked; });
+    var visibles = caja.querySelectorAll('label:not([hidden])').length;
+    var v = caja.querySelector('.vacio'); if (v) v.hidden = visibles > 0;
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });

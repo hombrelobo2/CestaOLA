@@ -62,14 +62,24 @@
         </div>
       </div>
       <div class="campo">
-        <label for="tk-lote">Lote <span class="muted peq">(opcional)</span></label>
-        <select id="tk-lote" name="premio_id">
-          <option value="">— Varios / general —</option>
-          {% for p in premios %}<option value="{{ p.id }}">{{ p.orden }}. {{ p.nombre }}</option>{% endfor %}
-        </select>
+        <label>Lotes que cubre <span class="muted peq">(opcional, puedes marcar varios)</span></label>
+        <div class="lista-check" id="tk-lotes">
+          {% for p in premios %}
+          <label class="{{ 'ya-tiene' if p.con_ticket }}" {{ 'hidden' if p.con_ticket }}>
+            <input type="checkbox" name="premio_id" value="{{ p.id }}">
+            <span>{{ p.orden }}. {{ p.nombre }}</span>{% if p.con_ticket %}<small>🧾 ya tiene</small>{% endif %}
+          </label>
+          {% endfor %}
+          {% set pendientes_tk = premios|rejectattr('con_ticket')|list|length %}
+          <p class="ayuda vacio" {{ 'hidden' if pendientes_tk }}>Todos los lotes tienen ya su ticket. Si es para uno de ellos, marca la casilla de abajo.</p>
+        </div>
+        {% if premios|selectattr('con_ticket')|list %}
+        <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-top:8px">
+          <input type="checkbox" id="tk-todos"> Mostrar también los lotes que ya tienen ticket</label>
+        {% endif %}
       </div>
       <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:14px">
-        <input type="checkbox" name="marcar" value="1" checked> Marcar ese lote como «con ticket»</label>
+        <input type="checkbox" name="marcar" value="1" checked> Marcar los lotes elegidos como «con ticket»</label>
       <button class="btn bloque-movil">⬆️ Subir</button>
       <p class="ayuda" style="margin-top:8px">Puedes elegir varios archivos a la vez (por ejemplo, un ticket largo en varias fotos). Solo los ven los organizadores.</p>
     </form>

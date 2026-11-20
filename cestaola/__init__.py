@@ -584,20 +584,23 @@ def create_app(test_config=None):
         if importe is None and (request.form.get("importe") or "").strip():
             flash("Importe no válido (por ejemplo 35,90).", "error")
             return redirect(url_for("admin_premios") + "#tickets")
-        premio_id = request.form.get("premio_id", type=int) or None
         db = D.get_db()
+        validos = {r[0] for r in db.execute("SELECT id FROM premios")}
+        premio_ids = sorted({int(x) for x in request.form.getlist("premio_id") if x.isdigit() and int(x) in validos})
         subidos = 0
         for f in ficheros:
             archivo, tipo = T.guardar(f, carpeta_tickets())
             if not archivo:
                 flash(tipo, "error")
                 continue
-            db.execute("INSERT INTO tickets (archivo, original, tipo, descripcion, importe_cent, premio_id) "
-                       "VALUES (?, ?, ?, ?, ?, ?)",
-                       (archivo, f.filename[:120], tipo, descripcion, importe if subidos == 0 else None, premio_id))
+            tid = db.execute("INSERT INTO tickets (archivo, original, tipo, descripcion, importe_cent) "
+                             "VALUES (?, ?, ?, ?, ?)",
+                             (archivo, f.filename[:120], tipo, descripcion, importe if subidos == 0 else None)).lastrowid
+            db.executemany("INSERT OR IGNORE INTO ticket_premios (ticket_id, premio_id) VALUES (?, ?)",
+                           [(tid, p) for p in premio_ids])
             subidos += 1
-        if subidos and premio_id and request.form.get("marcar"):
-            db.execute("UPDATE premios SET con_ticket=1 WHERE id=?", (premio_id,))
+        if subidos and premio_ids and request.form.get("marcar"):
+            db.executemany("UPDATE premios SET con_ticket=1 WHERE id=?", [(p,) for p in premio_ids])
         db.commit()
         if subidos:
             flash(f"{subidos} ticket{'s' if subidos != 1 else ''} subido{'s' if subidos != 1 else ''}.", "ok")

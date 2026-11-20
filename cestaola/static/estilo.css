@@ -353,3 +353,12 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   background: var(--abeto-claro); border-radius: 999px; padding: 2px 10px; }
 
 @media (max-width: 560px) { .lista-lotes .btn .txt { display: none; } .lista-lotes .info > b { font-size: .95rem; } }
+.lista-check { display: grid; gap: 6px; }
+.lista-check label { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 12px; border: 1.5px solid var(--linea);
+  border-radius: 12px; background: #fff; font-weight: 500; cursor: pointer; }
+.lista-check label[hidden], .lista-check p[hidden] { display: none; }
+.lista-check label:has(input:checked) { border-color: var(--vino); background: #fff6f4; }
+.lista-check label span { flex: 1; }
+.lista-check label small { color: var(--abeto); font-weight: 600; white-space: nowrap; }
+.lista-check input { width: 18px; height: 18px; accent-color: var(--vino); flex: none; }
+
