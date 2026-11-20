@@ -42,7 +42,19 @@ CREATE TABLE IF NOT EXISTS premios (
     precio_cent INTEGER NOT NULL DEFAULT 0,
     foto TEXT,
     orden INTEGER NOT NULL DEFAULT 0,
-    ganador_id INTEGER REFERENCES personas(id) ON DELETE SET NULL
+    ganador_id INTEGER REFERENCES personas(id) ON DELETE SET NULL,
+    con_ticket INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    archivo TEXT NOT NULL,              -- nombre en DATA_DIR/tickets
+    original TEXT NOT NULL DEFAULT '',  -- nombre con el que se subió
+    tipo TEXT NOT NULL,                 -- pdf | jpg | png
+    descripcion TEXT NOT NULL DEFAULT '',
+    importe_cent INTEGER,
+    premio_id INTEGER REFERENCES premios(id) ON DELETE SET NULL,
+    subido TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_compras_persona ON compras(persona_id);
@@ -84,10 +96,13 @@ def close_db(_exc=None):
 def init_db(app):
     os.makedirs(app.config["DATA_DIR"], exist_ok=True)
     os.makedirs(os.path.join(app.config["DATA_DIR"], "fotos"), exist_ok=True)
+    os.makedirs(os.path.join(app.config["DATA_DIR"], "tickets"), exist_ok=True)
     con = sqlite3.connect(os.path.join(app.config["DATA_DIR"], "cestaola.db"))
     con.execute("PRAGMA journal_mode = WAL")
     con.executescript(SCHEMA)
     # Migraciones de versiones anteriores
+    if "con_ticket" not in {r[1] for r in con.execute("PRAGMA table_info(premios)")}:
+        con.execute("ALTER TABLE premios ADD COLUMN con_ticket INTEGER NOT NULL DEFAULT 0")
     if "telefono" not in {r[1] for r in con.execute("PRAGMA table_info(personas)")}:
         con.execute("ALTER TABLE personas ADD COLUMN telefono TEXT NOT NULL DEFAULT ''")
     cols = {r[1] for r in con.execute("PRAGMA table_info(compras)")}
@@ -220,3 +235,11 @@ def resumen():
     d["coste"] = coste
     d["balance"] = d["recaudado"] - coste
     return d
+
+
+def tickets():
+    return get_db().execute(
+        "SELECT t.*, p.nombre AS lote, p.orden AS lote_orden FROM tickets t "
+        "LEFT JOIN premios p ON p.id = t.premio_id ORDER BY t.subido, t.id"
+    ).fetchall()
+

@@ -190,6 +190,33 @@ def test_flujo_completo():
     assert "Enhorabuena" in pub.get(enlace).text
     assert "Ya tenemos premiados" in pub.get("/").text
 
+    # tickets de compra: subir JPG y PDF, rechazar otros, ver, marcar lote, exportar, borrar
+    pdf_falso = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+    r = c.post("/admin/tickets", data={"_csrf": tok, "descripcion": "Carrefour embutidos", "importe": "45,30",
+                                       "premio_id": "1", "marcar": "1",
+                                       "tickets": [(_foto(), "ticket1.jpg"), (io.BytesIO(pdf_falso), "ticket2.pdf")]},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "2 tickets subidos" in r.text and "45,30 €" in r.text
+    r = c.post("/admin/tickets", data={"_csrf": tok, "tickets": [(io.BytesIO(b"hola"), "virus.exe")]},
+               content_type="multipart/form-data", follow_redirects=True)
+    assert "no es JPG, PNG ni PDF" in r.text
+    assert len(os.listdir(os.path.join(tmp, "tickets"))) == 2
+    assert c.get("/admin/tickets/1").data[:3] == b"\xff\xd8\xff"
+    assert c.get("/admin/tickets/2").data[:4] == b"%PDF"
+    assert pub.get("/admin/tickets/1").status_code == 302          # no es público
+    assert "Ticket de compra guardado" in pub.get("/").text        # lote 1 marcado al subir
+    c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # marca manual
+    r = c.get("/admin/premios")
+    assert "Con ticket: <b>2 de 2</b>" in r.text
+    c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # y desmarcar
+    assert "Con ticket: <b>1 de 2</b>" in c.get("/admin/premios").text
+    r = c.get("/admin/tickets.zip")
+    import zipfile as _zf
+    zt = _zf.ZipFile(io.BytesIO(r.data))
+    nombres = zt.namelist()
+    assert "tickets/01-Carrefour-embutidos.jpg" in nombres and "tickets/02-Carrefour-embutidos.pdf" in nombres
+    assert "45,30" in zt.read("indice.csv").decode("utf-8-sig") and "Total: 45,30 €" in zt.read("LEEME.txt").decode()
+
     # copia de seguridad: exportar, cambiar algo, importar y comprobar que vuelve
     r = c.get("/admin/copia.zip")
     assert r.status_code == 200 and r.data[:2] == b"PK"
@@ -205,6 +232,9 @@ def test_flujo_completo():
     r = c.post("/admin/importar", data={"_csrf": tok, "confirmo": "1", "copia": (io.BytesIO(copia), "c.zip")},
                content_type="multipart/form-data", follow_redirects=True)
     assert "Copia importada" in r.text and "OLA-0001" in c.get("/admin?estado=todas").text
+    assert "2 tickets" in r.text and len(os.listdir(os.path.join(tmp, "tickets"))) == 2
+    c.post("/admin/tickets/2/borrar", data={"_csrf": tok})
+    assert len(os.listdir(os.path.join(tmp, "tickets"))) == 1
     assert len(os.listdir(os.path.join(tmp, "copias"))) == 1
     r = c.post("/admin/importar", data={"_csrf": tok, "confirmo": "1", "copia": (io.BytesIO(b"no es zip"), "x.zip")},
                content_type="multipart/form-data", follow_redirects=True)

@@ -10,6 +10,8 @@ import zipfile
 from datetime import datetime
 
 TABLAS = {"ajustes", "personas", "compras", "premios"}
+CARPETAS = ("fotos", "tickets")          # archivos que acompañan a la base de datos
+EXTENSIONES = (".jpg", ".jpeg", ".png", ".webp", ".pdf")
 
 
 def exportar(data_dir):
@@ -23,12 +25,16 @@ def exportar(data_dir):
         dst.close(); src.close()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(copia, "cestaola.db")
-            fotos = os.path.join(data_dir, "fotos")
-            for f in sorted(os.listdir(fotos)):
-                if os.path.isfile(os.path.join(fotos, f)):
-                    z.write(os.path.join(fotos, f), f"fotos/{f}", compress_type=zipfile.ZIP_STORED)
+            for carpeta in CARPETAS:
+                ruta = os.path.join(data_dir, carpeta)
+                if not os.path.isdir(ruta):
+                    continue
+                for f in sorted(os.listdir(ruta)):
+                    if os.path.isfile(os.path.join(ruta, f)):
+                        z.write(os.path.join(ruta, f), f"{carpeta}/{f}", compress_type=zipfile.ZIP_STORED)
             z.writestr("LEEME.txt", "Copia de CestaOLA del " + datetime.now().strftime("%d/%m/%Y %H:%M")
-                       + ".\nPara restaurarla: panel de admin > Ajustes > Importar copia.\n")
+                       + ".\nIncluye la base de datos, las fotos de los lotes y los tickets de compra."
+                       + "\nPara restaurarla: panel de admin > Ajustes > Importar copia.\n")
     return buf.getvalue()
 
 
@@ -73,20 +79,24 @@ def importar(data_dir, fichero):
         src.backup(dst)
         dst.close(); src.close()
 
-    # Fotos: se sustituyen por las del .zip
-    fotos = os.path.join(data_dir, "fotos")
-    for f in os.listdir(fotos):
-        if os.path.isfile(os.path.join(fotos, f)):
-            os.remove(os.path.join(fotos, f))
-    n_fotos = 0
-    for nombre in nombres:
-        if nombre.startswith("fotos/") and not nombre.endswith("/"):
-            base = os.path.basename(nombre)
-            if base and not base.startswith(".") and base.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                with open(os.path.join(fotos, base), "wb") as f:
-                    f.write(z.read(nombre))
-                n_fotos += 1
-    return True, (f"Copia importada: {n} reservas y {n_fotos} fotos. "
+    # Fotos y tickets: se sustituyen por los del .zip
+    cuenta = {}
+    for carpeta in CARPETAS:
+        destino = os.path.join(data_dir, carpeta)
+        os.makedirs(destino, exist_ok=True)
+        for f in os.listdir(destino):
+            if os.path.isfile(os.path.join(destino, f)):
+                os.remove(os.path.join(destino, f))
+        cuenta[carpeta] = 0
+        for nombre in nombres:
+            if nombre.startswith(carpeta + "/") and not nombre.endswith("/"):
+                base = os.path.basename(nombre)
+                if base and not base.startswith(".") and base.lower().endswith(EXTENSIONES):
+                    with open(os.path.join(destino, base), "wb") as f:
+                        f.write(z.read(nombre))
+                    cuenta[carpeta] += 1
+    n_fotos = cuenta["fotos"]
+    return True, (f"Copia importada: {n} reservas, {n_fotos} fotos y {cuenta['tickets']} tickets. "
                   f"Lo que había antes está guardado en el servidor en copias/{os.path.basename(previa)}.")
 
 
@@ -106,7 +116,9 @@ def huella(data_dir):
         if "telegram_" not in linea:      # la huella y los ajustes de Telegram no cuentan como cambios
             h.update(linea.encode())
     con.close()
-    fotos = os.path.join(data_dir, "fotos")
-    for f in sorted(os.listdir(fotos)):
-        h.update(f.encode())
+    for carpeta in CARPETAS:
+        ruta = os.path.join(data_dir, carpeta)
+        if os.path.isdir(ruta):
+            for f in sorted(os.listdir(ruta)):
+                h.update(f"{carpeta}/{f}".encode())
     return h.hexdigest()

@@ -40,6 +40,9 @@
         <div class="ayuda">1 = primer lote que se sortea.</div>
       </div>
     </div>
+    <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:16px">
+      <input type="checkbox" name="con_ticket" value="1" {{ 'checked' if (form.con_ticket if form else (premio and premio.con_ticket)) }}>
+      🧾 Ya tiene el ticket de compra subido</label>
     <div class="botones" style="justify-content:space-between">
       <button class="btn bloque-movil" type="submit">💾 Guardar lote</button>
     </div>

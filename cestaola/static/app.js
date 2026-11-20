@@ -94,6 +94,13 @@
     if (n && copia.files[0]) n.textContent = '✓ ' + copia.files[0].name;
   });
 
+  // Nombres de los tickets elegidos
+  var tk = document.getElementById('tickets-archivo');
+  if (tk) tk.addEventListener('change', function () {
+    var n = document.getElementById('tickets-nombres');
+    if (n) n.textContent = tk.files.length ? '✓ ' + Array.prototype.map.call(tk.files, function (f) { return f.name; }).join(', ') : '';
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });

@@ -12,22 +12,93 @@
   <div class="tarjeta" style="padding-block:6px">
     <ul class="lista-lotes">
     {% for p in premios %}
-      <li>
+      <li id="lote-{{ p.id }}">
         {% if p.foto %}<img class="miniatura" src="{{ url_for('foto', nombre=p.foto) }}" alt="" loading="lazy">
         {% else %}<div class="miniatura vacia">🎁</div>{% endif %}
         <div class="info">
           <b>{{ p.orden }}. {{ p.nombre }}</b>
           <span class="detalle"><b>{{ p.precio_cent|euros }}</b>{% if p.ganador_nombre %} · 🏆 {{ p.ganador_nombre }}{% endif %}</span>
         </div>
-        <a class="btn sec peq" href="{{ url_for('admin_premio', pid=p.id) }}">✏️ Editar</a>
+        <form method="post" action="{{ url_for('admin_premio_ticket', pid=p.id) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button class="chip-ticket {{ 'si' if p.con_ticket }}" title="{{ 'Ya tiene ticket (tocar para quitar)' if p.con_ticket else 'Marcar que ya tiene ticket' }}"
+                  aria-pressed="{{ 'true' if p.con_ticket else 'false' }}">🧾 {{ '✓' if p.con_ticket else '—' }}</button>
+        </form>
+        <a class="btn sec peq" href="{{ url_for('admin_premio', pid=p.id) }}">✏️<span class="txt"> Editar</span></a>
       </li>
     {% else %}
       <li class="centro muted" style="padding:30px; justify-content:center">Añade el primer lote con su foto, descripción y precio.</li>
     {% endfor %}
     </ul>
     {% if premios %}
+    {% set n_tk = premios|selectattr('con_ticket')|list|length %}
     <div class="total-lotes"><span>{{ premios|length }} lote{{ 's' if premios|length != 1 }} · valor total</span><b>{{ res.coste|euros }}</b></div>
+    <p class="ayuda" style="padding-bottom:6px">🧾 Con ticket: <b>{{ n_tk }} de {{ premios|length }}</b>{% if n_tk < premios|length %} · faltan {{ premios|length - n_tk }}{% else %} · ¡todos! ✓{% endif %}</p>
     {% endif %}
   </div>
+</section>
+
+<section id="tickets" style="scroll-margin-top:130px">
+  <div class="titulo-seccion">
+    <h2>Tickets de compra</h2>
+    {% if tickets %}<a class="btn sec peq" href="{{ url_for('admin_tickets_zip') }}">⬇️ Exportar todos (.zip)</a>{% endif %}
+  </div>
+
+  <details class="tarjeta plegable" {{ 'open' if not tickets }}>
+    <summary>➕ Subir tickets</summary>
+    <form method="post" action="{{ url_for('admin_tickets_subir') }}" enctype="multipart/form-data" style="margin-top:14px">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="file" id="tickets-archivo" name="tickets" accept="image/jpeg,image/png,application/pdf,.jpg,.jpeg,.png,.pdf" multiple class="oculto-accesible">
+      <label for="tickets-archivo" class="btn sec bloque-movil" style="font-weight:600">📷 Hacer foto o elegir JPG / PDF</label>
+      <span class="ayuda" id="tickets-nombres"></span>
+      <div class="dos-col" style="margin-top:14px">
+        <div class="campo">
+          <label for="tk-desc">Descripción</label>
+          <input type="text" id="tk-desc" name="descripcion" maxlength="200" placeholder="Carrefour 12/11 – embutidos">
+        </div>
+        <div class="campo">
+          <label for="tk-importe">Importe (€)</label>
+          <input type="text" id="tk-importe" name="importe" inputmode="decimal" placeholder="Opcional">
+        </div>
+      </div>
+      <div class="campo">
+        <label for="tk-lote">Lote <span class="muted peq">(opcional)</span></label>
+        <select id="tk-lote" name="premio_id">
+          <option value="">— Varios / general —</option>
+          {% for p in premios %}<option value="{{ p.id }}">{{ p.orden }}. {{ p.nombre }}</option>{% endfor %}
+        </select>
+      </div>
+      <label style="font-weight:400; display:flex; gap:8px; align-items:center; margin-bottom:14px">
+        <input type="checkbox" name="marcar" value="1" checked> Marcar ese lote como «con ticket»</label>
+      <button class="btn bloque-movil">⬆️ Subir</button>
+      <p class="ayuda" style="margin-top:8px">Puedes elegir varios archivos a la vez (por ejemplo, un ticket largo en varias fotos). Solo los ven los organizadores.</p>
+    </form>
+  </details>
+
+  {% if tickets %}
+  <div class="tarjeta" style="padding-block:6px; margin-top:14px">
+    <ul class="lista-lotes lista-tickets">
+    {% for t in tickets %}
+      <li>
+        <a class="miniatura icono-ticket" href="{{ url_for('admin_ticket', tid=t.id) }}" target="_blank" title="Ver">
+          {% if t.tipo == 'pdf' %}<span>PDF</span>{% else %}<img src="{{ url_for('admin_ticket', tid=t.id) }}" alt="" loading="lazy">{% endif %}
+        </a>
+        <div class="info">
+          <b>{{ t.descripcion or t.original or ('Ticket ' ~ t.id) }}</b>
+          <span class="detalle">{% if t.importe_cent is not none %}<b>{{ t.importe_cent|euros }}</b> · {% endif %}{{ t.lote or 'General' }} · {{ t.subido[8:10] }}/{{ t.subido[5:7] }}</span>
+        </div>
+        <a class="btn sec peq" href="{{ url_for('admin_ticket', tid=t.id) }}" target="_blank">👁<span class="txt"> Ver</span></a>
+        <form method="post" action="{{ url_for('admin_ticket_borrar', tid=t.id) }}" data-confirmar="¿Borrar este ticket?">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn fantasma peq" title="Borrar">🗑</button>
+        </form>
+      </li>
+    {% endfor %}
+    </ul>
+    <div class="total-lotes"><span>{{ tickets|length }} ticket{{ 's' if tickets|length != 1 }} · suma de importes</span><b>{{ total_tickets|euros }}</b></div>
+    {% if total_tickets and total_tickets != res.coste %}
+    <p class="ayuda" style="padding-bottom:6px">Valor de los lotes: {{ res.coste|euros }} · diferencia {{ (total_tickets - res.coste)|euros }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

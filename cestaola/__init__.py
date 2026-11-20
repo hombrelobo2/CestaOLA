@@ -21,6 +21,7 @@ from . import db as D
 from . import pdfs
 from . import telegram
 from . import copias
+from . import tickets as T
 
 COOKIE = "cestaola_persona"
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -511,7 +512,9 @@ def create_app(test_config=None):
     @app.get("/admin/premios")
     @solo_admin
     def admin_premios():
-        return render_template("admin/premios.html", premios=D.premios(), res=D.resumen())
+        tks = D.tickets()
+        return render_template("admin/premios.html", premios=D.premios(), res=D.resumen(), tickets=tks,
+                               total_tickets=sum(t["importe_cent"] or 0 for t in tks))
 
     @app.route("/admin/premios/nuevo", methods=["GET", "POST"])
     @app.route("/admin/premios/<int:pid>", methods=["GET", "POST"])
@@ -543,18 +546,94 @@ def create_app(test_config=None):
             elif request.form.get("quitar_foto"):
                 borrar_foto(foto)
                 foto = None
+            con_ticket = 1 if request.form.get("con_ticket") else 0
             if premio:
-                db.execute("UPDATE premios SET nombre=?, descripcion=?, precio_cent=?, foto=?, orden=? WHERE id=?",
-                           (nombre, descripcion, precio, foto, orden, pid))
+                db.execute("UPDATE premios SET nombre=?, descripcion=?, precio_cent=?, foto=?, orden=?, con_ticket=? WHERE id=?",
+                           (nombre, descripcion, precio, foto, orden, con_ticket, pid))
             else:
                 if not orden:
                     orden = (db.execute("SELECT COALESCE(MAX(orden),0) FROM premios").fetchone()[0]) + 1
-                db.execute("INSERT INTO premios (nombre, descripcion, precio_cent, foto, orden) VALUES (?,?,?,?,?)",
-                           (nombre, descripcion, precio, foto, orden))
+                db.execute("INSERT INTO premios (nombre, descripcion, precio_cent, foto, orden, con_ticket) VALUES (?,?,?,?,?,?)",
+                           (nombre, descripcion, precio, foto, orden, con_ticket))
             db.commit()
             flash("Lote guardado.", "ok")
             return redirect(url_for("admin_premios"))
         return render_template("admin/premio.html", premio=premio, form={})
+
+    # ---------------------------------------------------------------- tickets de compra
+    def carpeta_tickets():
+        return os.path.join(app.config["DATA_DIR"], "tickets")
+
+    @app.post("/admin/premios/<int:pid>/ticket")
+    @solo_admin
+    def admin_premio_ticket(pid):
+        """Marca o desmarca a mano que el lote ya tiene su ticket."""
+        D.get_db().execute("UPDATE premios SET con_ticket = 1 - con_ticket WHERE id=?", (pid,))
+        D.get_db().commit()
+        return redirect(url_for("admin_premios") + f"#lote-{pid}")
+
+    @app.post("/admin/tickets")
+    @solo_admin
+    def admin_tickets_subir():
+        ficheros = [f for f in request.files.getlist("tickets") if f and f.filename]
+        if not ficheros:
+            flash("Elige al menos un ticket (JPG, PNG o PDF).", "error")
+            return redirect(url_for("admin_premios") + "#tickets")
+        descripcion = (request.form.get("descripcion") or "").strip()[:200]
+        importe = a_cent(request.form.get("importe")) if (request.form.get("importe") or "").strip() else None
+        if importe is None and (request.form.get("importe") or "").strip():
+            flash("Importe no válido (por ejemplo 35,90).", "error")
+            return redirect(url_for("admin_premios") + "#tickets")
+        premio_id = request.form.get("premio_id", type=int) or None
+        db = D.get_db()
+        subidos = 0
+        for f in ficheros:
+            archivo, tipo = T.guardar(f, carpeta_tickets())
+            if not archivo:
+                flash(tipo, "error")
+                continue
+            db.execute("INSERT INTO tickets (archivo, original, tipo, descripcion, importe_cent, premio_id) "
+                       "VALUES (?, ?, ?, ?, ?, ?)",
+                       (archivo, f.filename[:120], tipo, descripcion, importe if subidos == 0 else None, premio_id))
+            subidos += 1
+        if subidos and premio_id and request.form.get("marcar"):
+            db.execute("UPDATE premios SET con_ticket=1 WHERE id=?", (premio_id,))
+        db.commit()
+        if subidos:
+            flash(f"{subidos} ticket{'s' if subidos != 1 else ''} subido{'s' if subidos != 1 else ''}.", "ok")
+        return redirect(url_for("admin_premios") + "#tickets")
+
+    @app.get("/admin/tickets/<int:tid>")
+    @solo_admin
+    def admin_ticket(tid):
+        t = D.get_db().execute("SELECT * FROM tickets WHERE id=?", (tid,)).fetchone()
+        if not t:
+            abort(404)
+        return send_from_directory(carpeta_tickets(), os.path.basename(t["archivo"]),
+                                   mimetype="application/pdf" if t["tipo"] == "pdf" else "image/jpeg",
+                                   download_name=f"ticket-{tid}.{t['tipo']}", max_age=0)
+
+    @app.post("/admin/tickets/<int:tid>/borrar")
+    @solo_admin
+    def admin_ticket_borrar(tid):
+        db = D.get_db()
+        t = db.execute("SELECT * FROM tickets WHERE id=?", (tid,)).fetchone()
+        if t:
+            ruta = os.path.join(carpeta_tickets(), os.path.basename(t["archivo"]))
+            if os.path.exists(ruta):
+                os.remove(ruta)
+            db.execute("DELETE FROM tickets WHERE id=?", (tid,))
+            db.commit()
+            flash("Ticket borrado.", "ok")
+        return redirect(url_for("admin_premios") + "#tickets")
+
+    @app.get("/admin/tickets.zip")
+    @solo_admin
+    def admin_tickets_zip():
+        nombre = f"tickets-compra-{datetime.now().strftime('%Y%m%d')}.zip"
+        datos = T.exportar(D.tickets(), carpeta_tickets(), D.ajustes()["titulo"], euros)
+        return Response(datos, mimetype="application/zip", headers={
+            "Content-Disposition": f"attachment; filename={nombre}", "Cache-Control": "no-store"})
 
     @app.route("/admin/sorteo", methods=["GET", "POST"])
     @solo_admin
