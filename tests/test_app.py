@@ -134,6 +134,18 @@ def test_flujo_completo():
     tok = _csrf(c.get("/admin").text)
     for cid in (1, 2, 3):
         c.post(f"/admin/compra/{cid}/confirmar", data={"_csrf": tok})
+    # el móvil del organizador no "se convierte" en el participante al abrir su enlace
+    c.get(f"/mi/{token}")
+    assert "Hola, <b>" not in c.get("/").text
+    # un participante que abre el enlace reenviado de otro sigue siendo él mismo
+    otro_tok = re.search(r"/mi/([^/\"?]+)", otro.get("/").text).group(1)
+    pub.get(f"/mi/{otro_tok}")
+    assert "Hola, <b>María José" in pub.get("/").text
+    # al salir del panel se olvida la persona recordada
+    assert "cestaola_persona=;" in c.get("/admin/salir").headers.get("Set-Cookie", "")
+    c.post("/admin/login", data={"_csrf": _csrf(c.get('/admin/login').text), "clave": "secreta"})
+    tok = _csrf(c.get("/admin").text)
+
     # alta manual -> aviso con resguardo
     c.post("/admin/compra/nueva", data={"_csrf": tok, "nombre": "Josu Etxeberria", "cantidad": "4",
                                         "pago": "mano:0", "confirmada": "1"})

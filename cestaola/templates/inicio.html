@@ -5,7 +5,8 @@
 {% if persona %}
 <div class="aviso info" style="margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:space-between">
   <span>👋 Hola, <b>{{ persona.nombre }}</b>: tienes <b>{{ mis.c }}</b> papeleta{{ 's' if mis.c != 1 }} en la bolsa{% if mis.p %} y <b>{{ mis.p }}</b> pendiente{{ 's' if mis.p != 1 }} de confirmar{% endif %}.</span>
-  <a class="btn peq" href="{{ url_for('mi', token=persona.token) }}">Ver mis papeletas</a>
+  <span class="botones"><a class="btn peq" href="{{ url_for('mi', token=persona.token) }}">Ver mis papeletas</a>
+  <a class="peq" href="{{ url_for('olvidar') }}">¿No eres {{ persona.nombre.split()[0] }}?</a></span>
 </div>
 {% endif %}
 

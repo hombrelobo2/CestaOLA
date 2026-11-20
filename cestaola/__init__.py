@@ -282,9 +282,20 @@ def create_app(test_config=None):
                                      url_externa("admin", estado="pendiente", quien=f"{pago['metodo']}|{pago['nombre']}"),
                                      nueva_persona=not persona))
         resp = make_response(redirect(url_for("mi", token=token, nueva=cur.lastrowid)))
+        recordar_persona(resp, token, sustituir=True)
+        return resp
+
+    def recordar_persona(resp, token, sustituir):
+        """El móvil recuerda a quién pertenece para saludarle y sumar papeletas a su nombre.
+        - Nunca en el móvil de un organizador con sesión abierta: abre enlaces de otros a diario.
+        - Al abrir un enlace personal no se pisa a quien ya estaba recordado (enlaces reenviados).
+        - Al reservar (sustituir=True) sí: quien reserva en ese móvil es esa persona."""
+        if session.get("admin"):
+            return
+        if not sustituir and D.persona_por_token(request.cookies.get(COOKIE)):
+            return
         resp.set_cookie(COOKIE, token, max_age=3600 * 24 * 400, httponly=True, samesite="Lax",
                         secure=app.config["SESSION_COOKIE_SECURE"])
-        return resp
 
     @app.get("/mi/<token>")
     def mi(token):
@@ -301,8 +312,7 @@ def create_app(test_config=None):
             "mi.html", persona=persona, compras=compras, confirmadas=confirmadas,
             pendientes=pendientes, enlace=url_externa("mi", token=token), nueva=nueva,
             premiado=premiado))
-        resp.set_cookie(COOKIE, token, max_age=3600 * 24 * 400, httponly=True, samesite="Lax",
-                        secure=app.config["SESSION_COOKIE_SECURE"])
+        recordar_persona(resp, token, sustituir=False)
         return resp
 
     @app.get("/mi/<token>/resguardo")
@@ -393,7 +403,9 @@ def create_app(test_config=None):
     @app.get("/admin/salir")
     def admin_salir():
         session.clear()
-        return redirect(url_for("inicio"))
+        resp = make_response(redirect(url_for("inicio")))
+        resp.delete_cookie(COOKIE)          # olvida también a quién «era» este móvil
+        return resp
 
     @app.get("/admin")
     @solo_admin
