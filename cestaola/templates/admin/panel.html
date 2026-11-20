@@ -22,6 +22,8 @@
       <a class="btn verde peq" href="{{ url_for('resguardo', token=ultima.token, cid=ultima.id, t=ahora()) }}" target="_blank">📄 Descargar resguardo</a>
       <button class="btn sec peq" type="button" data-compartir-pdf="{{ url_for('resguardo', token=ultima.token, cid=ultima.id) }}"
               data-texto="Tu resguardo del sorteo ({{ concepto(ultima.id) }}). Tus papeletas: {{ url_mi(ultima.token) }}">📤 Enviar resguardo</button>
+{% set wa = whatsapp(ultima.nombre, ultima.telefono, ultima.token, ultima) %}
+      {% if wa %}<a class="btn wa peq" href="{{ wa }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
       <button class="btn sec peq" type="button" data-copiar="{{ url_mi(ultima.token) }}">🔗 Copiar su enlace</button>
     </div>
   </div>
@@ -81,6 +83,8 @@
           <td class="acciones" style="white-space:nowrap">
             {% set volver = url_for('admin', estado=filtro, quien=quien) %}
             <a class="btn sec peq" href="{{ url_for('resguardo', token=c.token, cid=c.id, t=ahora()) }}" target="_blank">📄 Resguardo</a>
+            {% set wa = whatsapp(c.nombre, c.telefono, c.token, c) %}
+            {% if wa %}<a class="btn wa peq" href="{{ wa }}" target="_blank" rel="noopener" title="Abrir su chat con el resguardo">💬</a>{% endif %}
             <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo', token=c.token, cid=c.id) }}"
                     data-texto="Tu resguardo del sorteo ({{ concepto(c.id) }}). Tus papeletas: {{ url_mi(c.token) }}">📤</button>
             {% if c.estado != 'confirmado' %}
@@ -122,6 +126,10 @@
           <input type="text" id="nombre-nuevo" name="nombre" maxlength="60" placeholder="Nombre y apellido">
         </div>
         <div class="campo">
+          <label for="tel-manual">Móvil <span class="muted peq">(opcional)</span></label>
+          <input type="tel" id="tel-manual" name="telefono" maxlength="20" placeholder="600 123 456">
+        </div>
+        <div class="campo">
           <label for="cant-manual">Papeletas</label>
           <input type="number" id="cant-manual" name="cantidad" value="1" min="1" max="500">
         </div>
@@ -148,6 +156,7 @@
           <form method="post" action="{{ url_for('admin_persona', pid=p.id) }}" style="display:flex; gap:6px; align-items:center">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="estado" value="{{ filtro }}">
             <input type="text" name="nombre" value="{{ p.nombre }}" class="inline-input" maxlength="60" style="min-width:160px">
+            <input type="tel" name="telefono" value="{{ p.telefono }}" class="inline-input tel" maxlength="20" placeholder="Móvil" aria-label="Móvil de {{ p.nombre }}">
             <button class="btn sec peq" title="Guardar nombre">💾</button>
           </form>
           {% if p.nombre.casefold() in repetidos %}<div class="repetido">⚠ Nombre repetido: ¿es la misma persona? Añade la inicial del apellido para distinguirlos.</div>{% endif %}
@@ -161,6 +170,8 @@
           <button class="btn sec peq" type="button" title="Enviar resguardo (WhatsApp…)" data-compartir-pdf="{{ url_for('resguardo_total', token=p.token) }}"
                   data-texto="Tu resguardo del sorteo. Tus papeletas: {{ url_mi(p.token) }}">📤</button>
           {% endif %}
+          {% set wa = whatsapp(p.nombre, p.telefono, p.token, None, p.confirmadas) if p.n_compras else '' %}
+          {% if wa %}<a class="btn wa peq" href="{{ wa }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
           <button class="btn sec peq" type="button" data-copiar="{{ url_mi(p.token) }}">🔗 Enlace</button>
         </td>
         <td>

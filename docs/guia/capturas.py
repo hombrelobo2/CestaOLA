@@ -72,7 +72,8 @@ GENTE = [("Iratxe Gómez", 5, "bizum:0"), ("Jon Ugarte", 3, "mano:0"), ("Conchi 
 for nombre, n, pago in GENTE:
     u = app.test_client()
     tt = tok(u.get("/").text)
-    u.post("/participar", data={"_csrf": tt, "nombre": nombre, "cantidad": str(n), "pago": pago})
+    u.post("/participar", data={"_csrf": tt, "nombre": nombre, "telefono": "600 000 0" + str(10 + len(nombre)),
+                               "cantidad": str(n), "pago": pago})
 for cid in (1, 2, 3, 4):
     c.post(f"/admin/compra/{cid}/confirmar", data={"_csrf": t})
 
@@ -113,6 +114,7 @@ with sync_playwright() as p:
     guardar(lote.screenshot(), "p3-lote-desplegado")
     guardar(m.locator(".cuentas").screenshot(), "p4-cuentas")
     m.fill("#nombre", "Ane Lasa")
+    m.fill("#telefono", "600 000 099")
     m.locator("#participar [data-paso='1']").click(); m.locator("#participar [data-paso='1']").click()
     guardar(m.locator("#participar").screenshot(), "p5-formulario")
     m.locator("#participar button.grande").click(); m.wait_for_load_state(); m.wait_for_timeout(200)

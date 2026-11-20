@@ -64,6 +64,20 @@ def euros(cent):
     return f"{signo}{miles},{c:02d} €"
 
 
+def telefono_wa(tel):
+    """'600 11 22 33' / '+34 600...' / '0034...' -> '34600112233' (formato de wa.me). '' si no vale."""
+    d = re.sub(r"\D", "", tel or "")
+    if d.startswith("00"):
+        d = d[2:]
+    if len(d) == 9 and d[0] in "6789":      # número español sin prefijo
+        d = "34" + d
+    return d if 10 <= len(d) <= 15 else ""
+
+
+def limpiar_telefono(tel):
+    return " ".join((tel or "").split())[:20]
+
+
 def a_cent(texto):
     """'12,5' / '12.50' / '12' -> 1250. Devuelve None si no es válido."""
     t = (texto or "").strip().replace("€", "").replace(" ", "")
@@ -136,6 +150,27 @@ def create_app(test_config=None):
         return f"{g.aj['prefijo']}-{compra_id:04d}"
 
     app.jinja_env.globals["concepto"] = concepto
+
+    def whatsapp(nombre, telefono, token, compra=None, en_bolsa=None):
+        """Enlace wa.me que abre el chat de esa persona con el mensaje y el enlace al resguardo ya escritos."""
+        num = telefono_wa(telefono)
+        if not num:
+            return ""
+        aj = g.aj if "aj" in g else D.ajustes()
+        nombre_pila = (nombre or "").split()[0] if nombre else ""
+        if compra is not None:
+            estado = {"confirmado": "pagado ✅", "pendiente": "pendiente de pago", "rechazado": "anulado"}[compra["estado"]]
+            n = compra["cantidad"]
+            linea = (f"Tu resguardo del {aj['titulo']}: {concepto(compra['id'])}, {n} papeleta{'s' if n != 1 else ''}, "
+                     f"{euros(n * compra['precio_cent'])} ({estado}).")
+            pdf = url_externa("resguardo", token=token, cid=compra["id"])
+        else:
+            linea = f"Tu resguardo del {aj['titulo']}" + (f" ({en_bolsa} papeleta{'s' if en_bolsa != 1 else ''} en la bolsa)." if en_bolsa is not None else ".")
+            pdf = url_externa("resguardo_total", token=token)
+        texto = f"Hola {nombre_pila} 👋\n{linea}\n📄 {pdf}\n🎟️ Tus papeletas: {url_externa('mi', token=token)}"
+        return f"https://wa.me/{num}?text={quote(texto)}"
+
+    app.jinja_env.globals["whatsapp"] = whatsapp
 
     def nombre_resguardo(nombre, sufijo):
         """Siempre igual: resguardo-Nombre-Apellido-CESTA-0017 (o ...-resumen si junta varias reservas)."""
@@ -212,8 +247,12 @@ def create_app(test_config=None):
         except ValueError:
             cantidad = 0
         destino = url_for("mi", token=persona["token"]) if persona else url_for("inicio")
+        telefono = limpiar_telefono(request.form.get("telefono"))
         if not persona and len(nombre) < 2:
             flash("Escribe tu nombre (y apellido, para no confundirte con otro compañero).", "error")
+            return redirect(destino + "#participar")
+        if not persona and not telefono_wa(telefono):
+            flash("Escribe tu teléfono móvil (para mandarte el resguardo por WhatsApp).", "error")
             return redirect(destino + "#participar")
         if cantidad < 1 or cantidad > aj["max_por_compra"]:
             flash(f"Elige entre 1 y {aj['max_por_compra']} papeletas.", "error")
@@ -224,7 +263,7 @@ def create_app(test_config=None):
         db = D.get_db()
         if not persona:
             token = D.nuevo_token()
-            cur = db.execute("INSERT INTO personas (nombre, token) VALUES (?, ?)", (nombre, token))
+            cur = db.execute("INSERT INTO personas (nombre, token, telefono) VALUES (?, ?, ?)", (nombre, token, telefono))
             persona_id = cur.lastrowid
         else:
             persona_id, token = persona["id"], persona["token"]
@@ -236,7 +275,9 @@ def create_app(test_config=None):
         importe = euros(cantidad * aj["precio_cent"])
         telegram.enviar_en_segundo_plano(
             aj["telegram_token"], aj["telegram_chats"],
-            telegram.mensaje_reserva(aj, persona["nombre"] if persona else nombre, cantidad, importe,
+            telegram.mensaje_reserva(aj, (persona["nombre"] if persona else nombre)
+                                     + (f" · {persona['telefono'] if persona else telefono}" if (persona["telefono"] if persona else telefono) else ""),
+                                     cantidad, importe,
                                      concepto(cur.lastrowid), pago,
                                      url_externa("admin", estado="pendiente", quien=f"{pago['metodo']}|{pago['nombre']}"),
                                      nueva_persona=not persona))
@@ -359,7 +400,7 @@ def create_app(test_config=None):
     def admin():
         filtro = request.args.get("estado", "pendiente")
         quien = request.args.get("quien")   # "bizum|Ana" o "mano|Luis"
-        sql = ("SELECT c.*, pe.nombre, pe.token FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE 1=1 ")
+        sql = ("SELECT c.*, pe.nombre, pe.token, pe.telefono FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE 1=1 ")
         args = []
         if filtro in ("pendiente", "confirmado", "rechazado"):
             sql += "AND c.estado=? "
@@ -381,7 +422,7 @@ def create_app(test_config=None):
         ultima = None
         if session.get("ultima_alta"):
             ultima = D.get_db().execute(
-                "SELECT c.*, pe.nombre, pe.token FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE c.id=?",
+                "SELECT c.*, pe.nombre, pe.token, pe.telefono FROM compras c JOIN personas pe ON pe.id=c.persona_id WHERE c.id=?",
                 (session.pop("ultima_alta"),)).fetchone()
         return render_template("admin/panel.html", compras=compras, filtro=filtro, quien=quien, ultima=ultima,
                                url_mi=lambda t: url_externa("mi", token=t),
@@ -426,8 +467,10 @@ def create_app(test_config=None):
             flash("Indica nombre (o persona existente) y número de papeletas.", "error")
             return redirect(url_for("admin"))
         if not pid:
-            pid = db.execute("INSERT INTO personas (nombre, token) VALUES (?, ?)",
-                             (nombre, D.nuevo_token())).lastrowid
+            pid = db.execute("INSERT INTO personas (nombre, token, telefono) VALUES (?, ?, ?)",
+                             (nombre, D.nuevo_token(), limpiar_telefono(request.form.get("telefono")))).lastrowid
+        elif request.form.get("telefono", "").strip():
+            db.execute("UPDATE personas SET telefono=? WHERE id=?", (limpiar_telefono(request.form.get("telefono")), pid))
         estado = "confirmado" if request.form.get("confirmada") else "pendiente"
         cur = db.execute("INSERT INTO compras (persona_id, cantidad, precio_cent, metodo, receptor, receptor_tel, "
                    "estado, confirmado, nota) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'alta manual')",
@@ -448,6 +491,8 @@ def create_app(test_config=None):
             nombre = " ".join((request.form.get("nombre") or "").split())[:60]
             if len(nombre) >= 2:
                 db.execute("UPDATE personas SET nombre=? WHERE id=?", (nombre, pid))
+            if "telefono" in request.form:
+                db.execute("UPDATE personas SET telefono=? WHERE id=?", (limpiar_telefono(request.form.get("telefono")), pid))
         db.commit()
         return redirect(url_for("admin", estado=request.form.get("estado", "pendiente")) + "#personas")
 
@@ -669,12 +714,12 @@ def create_app(test_config=None):
     def admin_csv():
         rows = D.get_db().execute(
             "SELECT c.id, pe.nombre, c.cantidad, c.precio_cent, c.metodo, c.estado, c.creado, "
-            "c.confirmado, c.nota, c.receptor FROM compras c JOIN personas pe ON pe.id=c.persona_id ORDER BY c.id").fetchall()
+            "c.confirmado, c.nota, c.receptor, pe.telefono FROM compras c JOIN personas pe ON pe.id=c.persona_id ORDER BY c.id").fetchall()
         out = io.StringIO()
         w = csv.writer(out, delimiter=";")
-        w.writerow(["concepto", "nombre", "papeletas", "importe", "pago", "a quien", "estado", "fecha", "confirmado", "nota"])
+        w.writerow(["concepto", "nombre", "telefono", "papeletas", "importe", "pago", "a quien", "estado", "fecha", "confirmado", "nota"])
         for r in rows:
-            w.writerow([concepto(r["id"]), r["nombre"], r["cantidad"],
+            w.writerow([concepto(r["id"]), r["nombre"], r["telefono"], r["cantidad"],
                         f"{r['cantidad'] * r['precio_cent'] / 100:.2f}".replace(".", ","),
                         r["metodo"], r["receptor"], r["estado"], r["creado"], r["confirmado"] or "", r["nota"]])
         return Response("﻿" + out.getvalue(), mimetype="text/csv",

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS personas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     token TEXT NOT NULL UNIQUE,
+    telefono TEXT NOT NULL DEFAULT '',
     creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
@@ -87,6 +88,8 @@ def init_db(app):
     con.execute("PRAGMA journal_mode = WAL")
     con.executescript(SCHEMA)
     # Migraciones de versiones anteriores
+    if "telefono" not in {r[1] for r in con.execute("PRAGMA table_info(personas)")}:
+        con.execute("ALTER TABLE personas ADD COLUMN telefono TEXT NOT NULL DEFAULT ''")
     cols = {r[1] for r in con.execute("PRAGMA table_info(compras)")}
     if "receptor" not in cols:
         con.execute("ALTER TABLE compras ADD COLUMN receptor TEXT NOT NULL DEFAULT ''")

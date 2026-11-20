@@ -95,7 +95,11 @@ def test_flujo_completo():
                                    "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"]})
     assert 'value="111, -222"' in c.get("/admin/ajustes").text
     c.get("/admin/salir")
-    r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega",
+    # sin teléfono no deja reservar
+    r = pub.post("/participar", data={"_csrf": tok, "nombre": "Sin Movil", "cantidad": "1", "pago": "mano:0"},
+                 follow_redirects=True)
+    assert "Escribe tu teléfono" in r.text
+    r = pub.post("/participar", data={"_csrf": tok, "nombre": "María José Fernández de la Vega", "telefono": "+34 611 22 33 44",
                                      "cantidad": "3", "pago": "bizum:1"})
     assert r.status_code == 302
     enlace = r.headers["Location"]
@@ -120,7 +124,7 @@ def test_flujo_completo():
 
     otro = app.test_client()
     t2 = _csrf(otro.get("/").text)
-    otro.post("/participar", data={"_csrf": t2, "nombre": "Luis", "cantidad": "1", "pago": "mano:0"})
+    otro.post("/participar", data={"_csrf": t2, "nombre": "Luis", "telefono": "655443322", "cantidad": "1", "pago": "mano:0"})
     # cambia de forma de pago
     r = pub.post(f"/mi/{token}/cambiar-pago/1", data={"_csrf": tok, "pago": "bizum:0"})
     assert "600 111 222" in pub.get(enlace.split("?")[0]).text
@@ -147,6 +151,14 @@ def test_flujo_completo():
     r = c.get("/admin?estado=confirmado")
     assert r.text.count("Deshacer") == 3
     assert "15,00 €" in r.text  # 6 papeletas x 2,50
+    # botón de WhatsApp con el chat de la persona y el enlace al resguardo
+    from urllib.parse import unquote
+    m = re.search(r'href="(https://wa\.me/34611223344\?text=[^"]+)"', r.text)
+    assert m, "falta el botón de WhatsApp"
+    texto = unquote(m.group(1).replace("&amp;", "&"))
+    assert "Hola María" in texto and "/resguardo/" in texto and "pagado" in texto
+    assert "https://wa.me/34655443322" in r.text
+    assert "611 22 33 44" in c.get("/admin/exportar.csv").get_data(as_text=True)
 
     # PDFs
     r = c.get("/admin/papeletas.pdf")

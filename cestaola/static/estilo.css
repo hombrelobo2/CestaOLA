@@ -334,3 +334,10 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   .titulo-seccion form { width: 100%; display: flex; justify-content: center; gap: 8px; align-items: center; }
 }
 .pie .version { opacity: .75; font-variant-numeric: tabular-nums; }
+
+/* WhatsApp */
+.btn.wa { background: #25d366; color: #073b1e; border-color: #25d366; box-shadow: 0 6px 16px -10px rgba(37,211,102,.9); }
+.btn.wa:hover { background: #1ebe5b; }
+.inline-input.tel { max-width: 130px; }
+@media (max-width: 560px) { .inline-input.tel { max-width: 120px; } }
+
