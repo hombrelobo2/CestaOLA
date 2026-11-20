@@ -105,9 +105,10 @@
     {% endfor %}
     </ul>
     <div class="total-lotes"><span>{{ tickets|length }} ticket{{ 's' if tickets|length != 1 }} · suma de importes</span><b>{{ total_tickets|euros }}</b></div>
-    {% if total_tickets and total_tickets != res.coste %}
-    <p class="ayuda" style="padding-bottom:6px">Valor de los lotes: {{ res.coste|euros }} · diferencia {{ (total_tickets - res.coste)|euros }}</p>
+    {% if tickets_otros %}
+    <p class="ayuda" style="padding-bottom:6px">De lotes: {{ tickets_lotes|euros }} · Otros gastos sin lote (celo, papel, sobres…): {{ tickets_otros|euros }}</p>
     {% endif %}
+    <p class="ayuda" style="padding-bottom:6px">Los tickets son solo justificantes: el valor de los lotes y las cuentas de la web salen del precio que pones en cada lote.</p>
   </div>
   {% endif %}
 </section>

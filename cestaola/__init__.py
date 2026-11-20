@@ -514,7 +514,9 @@ def create_app(test_config=None):
     def admin_premios():
         tks = D.tickets()
         return render_template("admin/premios.html", premios=D.premios(), res=D.resumen(), tickets=tks,
-                               total_tickets=sum(t["importe_cent"] or 0 for t in tks))
+                               total_tickets=sum(t["importe_cent"] or 0 for t in tks),
+                               tickets_lotes=sum(t["importe_cent"] or 0 for t in tks if t["lote"]),
+                               tickets_otros=sum(t["importe_cent"] or 0 for t in tks if not t["lote"]))
 
     @app.route("/admin/premios/nuevo", methods=["GET", "POST"])
     @app.route("/admin/premios/<int:pid>", methods=["GET", "POST"])

@@ -216,12 +216,20 @@ def test_flujo_completo():
     assert c.get("/admin/tickets/1").data[:3] == b"\xff\xd8\xff"
     assert c.get("/admin/tickets/2").data[:4] == b"%PDF"
     assert pub.get("/admin/tickets/1").status_code == 302          # no es público
-    assert "Ticket de compra guardado" in pub.get("/").text        # lote 1 marcado al subir
+    assert "Ticket de compra guardado" not in pub.get("/").text    # la marca no se ve en la web pública
     c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # marca manual
     r = c.get("/admin/premios")
     assert "Con ticket: <b>2 de 2</b>" in r.text and "Todos los lotes tienen ya su ticket" in r.text
     c.post("/admin/premios/2/ticket", data={"_csrf": tok})          # y desmarcar
     assert "Con ticket: <b>1 de 2</b>" in c.get("/admin/premios").text
+    # un gasto sin lote (papel de regalo) no cambia el valor de los lotes ni las cuentas
+    coste_antes = re.search(r"valor total</span><b>([^<]+)", c.get("/admin/premios").text).group(1)
+    c.post("/admin/tickets", data={"_csrf": tok, "descripcion": "Papel de regalo", "importe": "6,50",
+                                   "tickets": [(_foto(), "papel.jpg")]}, content_type="multipart/form-data")
+    r = c.get("/admin/premios")
+    assert re.search(r"valor total</span><b>([^<]+)", r.text).group(1) == coste_antes
+    assert "Otros gastos sin lote (celo, papel, sobres…): 6,50 €" in r.text
+    c.post("/admin/tickets/4/borrar", data={"_csrf": tok})
     r = c.get("/admin/tickets.zip")
     import zipfile as _zf
     zt = _zf.ZipFile(io.BytesIO(r.data))

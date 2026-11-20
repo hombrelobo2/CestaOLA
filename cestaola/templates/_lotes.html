@@ -9,7 +9,6 @@
     </div>
     <div class="cuerpo">
       <h3>{{ p.nombre }}</h3>
-      {% if p.con_ticket %}<span class="con-ticket">🧾 Ticket de compra guardado</span>{% endif %}
       {% if p.descripcion %}
       <p class="desc plegada" id="desc-{{ p.id }}">{{ p.descripcion }}</p>
       <button type="button" class="ver-mas" aria-controls="desc-{{ p.id }}" aria-expanded="false" hidden>Ver qué incluye ▾</button>
