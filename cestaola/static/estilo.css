@@ -158,7 +158,7 @@ section { margin: 28px 0 40px; }
 /* ---------- formulario ---------- */
 label { display: block; font-weight: 600; margin: 0 0 6px; }
 .campo { margin-bottom: 18px; }
-input[type=text], input[type=number], input[type=password], input[type=tel], textarea, select {
+input[type=text], input[type=number], input[type=password], input[type=tel], input[type=datetime-local], textarea, select {
   width: 100%; font: inherit; color: inherit; padding: 12px 14px; border-radius: 12px;
   border: 1.5px solid var(--linea); background: #fff; transition: border-color .15s, box-shadow .15s;
 }
@@ -361,4 +361,20 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
 .lista-check label span { flex: 1; }
 .lista-check label small { color: var(--abeto); font-weight: 600; white-space: nowrap; }
 .lista-check input { width: 18px; height: 18px; accent-color: var(--vino); flex: none; }
+
+/* Cuenta atrás */
+.cuenta-atras { margin: 18px auto 0; max-width: 460px; }
+.cuenta-titulo { font-size: .95rem; font-weight: 600; color: var(--oro-claro); letter-spacing: .2px; }
+.cuenta-titulo.fin { font-family: var(--serif); font-size: 1.3rem; color: #fff6e6; padding: 10px 0; }
+.cuenta-casillas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.cuenta-casillas div { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 14px; padding: 10px 4px 8px;
+  display: flex; flex-direction: column; align-items: center; }
+.cuenta-casillas b { font-family: var(--serif); font-size: clamp(1.7rem, 7vw, 2.3rem); line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.cuenta-casillas span { font-size: .72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--oro-claro); margin-top: 4px; }
+.cuenta-cuando { font-size: .82rem; opacity: .75; margin-top: 8px; }
+.opciones-cuenta { display: grid; gap: 6px; }
+.opciones-cuenta label { display: flex; gap: 10px; align-items: center; margin: 0; padding: 10px 12px; border: 1.5px solid var(--linea);
+  border-radius: 12px; background: #fff; font-weight: 500; cursor: pointer; }
+.opciones-cuenta label:has(input:checked) { border-color: var(--vino); background: #fff6f4; }
+.opciones-cuenta input { accent-color: var(--vino); width: 18px; height: 18px; }
 

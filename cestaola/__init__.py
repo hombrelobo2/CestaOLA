@@ -693,6 +693,17 @@ def create_app(test_config=None):
             D.guardar_ajuste("precio_cent", precio)
             for k, lim in (("titulo", 120), ("texto", 2000), ("fecha_sorteo", 80)):
                 D.guardar_ajuste(k, (request.form.get(k) or "").strip()[:lim])
+            # Cuenta atrás y cierre automático
+            for k in ("cierre_dt", "sorteo_dt"):
+                v = (request.form.get(k) or "").strip()[:16]
+                D.guardar_ajuste(k, v if D.fecha_hora(v) else "")
+            cuenta = request.form.get("cuenta_atras", "no")
+            cuenta = cuenta if cuenta in ("no", "cierre", "sorteo") else "no"
+            if cuenta != "no" and not D.fecha_hora(request.form.get(f"{cuenta}_dt", "")):
+                flash("Para la cuenta atrás falta la fecha y hora " + ("del cierre." if cuenta == "cierre" else "del sorteo."), "error")
+                cuenta = "no"
+            D.guardar_ajuste("cuenta_atras", cuenta)
+            D.guardar_ajuste("cierre_auto", "1" if request.form.get("cierre_auto") else "0")
             bizum = []
             for n, t in zip(request.form.getlist("bizum_nombre"), request.form.getlist("bizum_tel")):
                 n, t = " ".join(n.split())[:40], " ".join(t.split())[:20]

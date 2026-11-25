@@ -10,6 +10,8 @@
       <input type="hidden" name="volver" value="{{ url_for('admin') }}">
       <input type="hidden" name="valor" value="{{ 'cerrada' if aj.abierta else 'abierta' }}">
       {% if aj.abierta %}<button class="btn sec peq">🔒 Cerrar la venta</button>
+      {% elif aj.cerrada_auto %}<span class="estado rechazado">Cerrada automáticamente ({{ aj.cierre_txt }})</span>
+        <a class="btn sec peq" href="{{ url_for('admin_ajustes') }}#cuenta">Cambiar hora</a>
       {% else %}<span class="estado rechazado">Venta cerrada</span> <button class="btn sec peq">🔓 Reabrir</button>{% endif %}
     </form>
   </div>

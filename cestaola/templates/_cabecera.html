@@ -9,6 +9,23 @@
       <span class="chip">🎟️ {{ aj.precio_cent|euros }} la papeleta</span>
       {% if aj.fecha_sorteo %}<span class="chip">📅 {{ aj.fecha_sorteo }}</span>{% endif %}
     </div>
+    {% if aj.cuenta %}
+    {% set r = aj.cuenta.restante %}
+    <div class="cuenta-atras" data-restante="{{ r }}" data-fin="{{ aj.cuenta.fin }}" title="{{ aj.cuenta.cuando }}">
+      {% if r > 0 %}
+      <div class="cuenta-titulo">⏳ Faltan {{ aj.cuenta.texto }}</div>
+      <div class="cuenta-casillas">
+        <div><b data-u="d">{{ r // 86400 }}</b><span>días</span></div>
+        <div><b data-u="h">{{ '%02d'|format(r % 86400 // 3600) }}</b><span>horas</span></div>
+        <div><b data-u="m">{{ '%02d'|format(r % 3600 // 60) }}</b><span>min</span></div>
+        <div><b data-u="s">{{ '%02d'|format(r % 60) }}</b><span>seg</span></div>
+      </div>
+      <div class="cuenta-cuando">{{ aj.cuenta.cuando }}</div>
+      {% else %}
+      <div class="cuenta-titulo fin">{{ aj.cuenta.fin }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
     {% if cta and aj.abierta %}<div class="cta"><a class="btn" href="#participar">🎟️ Quiero mis papeletas</a></div>{% endif %}
   </div>
 </header>

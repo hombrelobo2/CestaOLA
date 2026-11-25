@@ -35,6 +35,28 @@
       </div>
     </div>
 
+    <h3 style="margin-top:10px" id="cuenta">⏳ Cuenta atrás</h3>
+    <p class="ayuda" style="margin-top:-4px">Se muestra en la web, bajo los datos del sorteo, y baja segundo a segundo.</p>
+    <div class="opciones-cuenta">
+      {% for v, t in [('no', 'Desactivada'), ('cierre', 'Hasta el cierre de la venta'), ('sorteo', 'Hasta el sorteo')] %}
+      <label><input type="radio" name="cuenta_atras" value="{{ v }}" {{ 'checked' if aj.cuenta_atras == v }}> {{ t }}</label>
+      {% endfor %}
+    </div>
+    <div class="dos-col" style="margin-top:12px">
+      <div class="campo">
+        <label for="cierre_dt">Cierre de la venta</label>
+        <input type="datetime-local" id="cierre_dt" name="cierre_dt" value="{{ aj.cierre_dt }}">
+      </div>
+      <div class="campo">
+        <label for="sorteo_dt">Fecha y hora del sorteo</label>
+        <input type="datetime-local" id="sorteo_dt" name="sorteo_dt" value="{{ aj.sorteo_dt }}">
+        <div class="ayuda">Para la cuenta atrás. El texto de «Fecha del sorteo» de arriba es el que se muestra.</div>
+      </div>
+    </div>
+    <label style="font-weight:400; display:flex; gap:8px; align-items:flex-start; margin-bottom:16px">
+      <input type="checkbox" name="cierre_auto" value="1" {{ 'checked' if aj.cierre_auto == '1' }} style="margin-top:4px">
+      <span>🔒 Cerrar la venta automáticamente al llegar la hora de cierre</span></label>
+
     <h3 style="margin-top:10px">📱 Quién recibe <span style="color:#05c3b6; font-weight:800">bizum</span></h3>
     <p class="ayuda" style="margin-top:-4px">Cada participante elige a quién se lo envía. Deja vacías las filas que no uses.</p>
     {% for b in aj.bizum + [{}, {}] %}

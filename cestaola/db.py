@@ -3,6 +3,7 @@
 """Acceso a SQLite: esquema, ajustes y consultas comunes."""
 import json
 import os
+from datetime import datetime
 import secrets
 import sqlite3
 from flask import current_app, g
@@ -80,6 +81,10 @@ DEFAULTS = {
     "telegram_copia": "0",         # 1 = enviar la copia .zip cada noche
     "telegram_copia_hash": "",     # huella de la última copia enviada (no se repite si no hay cambios)
     "fecha_sorteo": "",
+    "cuenta_atras": "no",          # no | cierre | sorteo
+    "cierre_dt": "",               # AAAA-MM-DDTHH:MM (hora del servidor)
+    "sorteo_dt": "",
+    "cierre_auto": "1",            # 1 = la venta se cierra sola al llegar a cierre_dt
     "estado": "abierta",          # abierta | cerrada
     "publicar_ganadores": "0",
 }
@@ -137,7 +142,21 @@ def ajustes():
     a.update({r["clave"]: r["valor"] for r in rows})
     a["precio_cent"] = int(a["precio_cent"] or 0)
     a["max_por_compra"] = int(a["max_por_compra"] or 50)
-    a["abierta"] = a["estado"] == "abierta"
+    ahora = datetime.now()
+    cierre, sorteo = fecha_hora(a["cierre_dt"]), fecha_hora(a["sorteo_dt"])
+    a["cerrada_auto"] = bool(a["estado"] == "abierta" and a["cierre_auto"] == "1" and cierre and ahora >= cierre)
+    a["abierta"] = a["estado"] == "abierta" and not a["cerrada_auto"]
+    a["cierre_txt"] = fecha_bonita(cierre) if cierre else ""
+    a["cuenta"] = None
+    objetivo = {"cierre": cierre, "sorteo": sorteo}.get(a["cuenta_atras"])
+    if objetivo:
+        a["cuenta"] = {
+            "tipo": a["cuenta_atras"],
+            "restante": max(0, int((objetivo - ahora).total_seconds())),
+            "texto": "para el cierre de la venta" if a["cuenta_atras"] == "cierre" else "para el sorteo",
+            "fin": "¡La venta de papeletas ha terminado!" if a["cuenta_atras"] == "cierre" else "¡Es la hora del sorteo! 🍀",
+            "cuando": fecha_bonita(objetivo),
+        }
     a["publicar_ganadores"] = a["publicar_ganadores"] == "1"
     a["bizum"] = _lista(a["bizum"], ("nombre", "tel"))
     a["mano"] = _lista(a["mano"], ("nombre",))
@@ -185,6 +204,23 @@ def por_receptor():
         GROUP BY metodo, receptor ORDER BY metodo, receptor COLLATE NOCASE
         """
     ).fetchall()
+
+
+DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+         "octubre", "noviembre", "diciembre"]
+
+
+def fecha_hora(texto):
+    try:
+        return datetime.strptime(texto or "", "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return None
+
+
+def fecha_bonita(d):
+    """datetime -> 'miércoles 23 de diciembre, 14:30'"""
+    return f"{DIAS[d.weekday()]} {d.day} de {MESES[d.month - 1]}, {d:%H:%M}"
 
 
 def guardar_ajuste(clave, valor):

@@ -110,6 +110,25 @@
     var v = caja.querySelector('.vacio'); if (v) v.hidden = visibles > 0;
   });
 
+  // Cuenta atrás (parte de los segundos que calcula el servidor: no depende del reloj del móvil)
+  document.querySelectorAll('.cuenta-atras[data-restante]').forEach(function (c) {
+    var fin = Date.now() + parseInt(c.dataset.restante, 10) * 1000;
+    function dos(n) { return (n < 10 ? '0' : '') + n; }
+    function pintar() {
+      var r = Math.max(0, Math.round((fin - Date.now()) / 1000));
+      if (r <= 0) {
+        c.innerHTML = '<div class="cuenta-titulo fin"></div>';
+        c.firstChild.textContent = c.dataset.fin;
+        clearInterval(t);
+        return;
+      }
+      var u = { d: Math.floor(r / 86400), h: dos(Math.floor(r % 86400 / 3600)), m: dos(Math.floor(r % 3600 / 60)), s: dos(r % 60) };
+      Object.keys(u).forEach(function (k) { var b = c.querySelector('[data-u="' + k + '"]'); if (b) b.textContent = u[k]; });
+    }
+    var t = setInterval(pintar, 1000);
+    if (parseInt(c.dataset.restante, 10) > 0) pintar();
+  });
+
   // Confirmación para acciones peligrosas
   document.querySelectorAll('[data-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirmar)) e.preventDefault(); });

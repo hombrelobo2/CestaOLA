@@ -280,6 +280,24 @@ def test_flujo_completo():
         ok, msgs = nocturna.enviar_copia(tmp)
         assert ok and len(msgs) == 2, msgs
 
+    # cuenta atrás y cierre automático
+    from datetime import datetime as _dt, timedelta as _td
+    base = {"_csrf": tok, "precio": "2,50", "titulo": "Cesta OLA 2026", "prefijo": "ola", "max_por_compra": "40",
+            "bizum_nombre": ["Ana", "Pedro"], "bizum_tel": ["600 111 222", "611 222 333"], "mano_nombre": ["Luis", "Marta"]}
+    dentro = (_dt.now() + _td(days=2, hours=3)).strftime("%Y-%m-%dT%H:%M")
+    r = c.post("/admin/ajustes", data=dict(base, cuenta_atras="sorteo"), follow_redirects=True)
+    assert "falta la fecha y hora del sorteo" in r.text and "cuenta-atras" not in pub.get("/").text
+    c.post("/admin/ajustes", data=dict(base, cuenta_atras="sorteo", sorteo_dt=dentro))
+    r = pub.get("/")
+    assert "Faltan para el sorteo" in r.text and '<b data-u="d">2</b>' in r.text
+    pasado = (_dt.now() - _td(minutes=1)).strftime("%Y-%m-%dT%H:%M")
+    c.post("/admin/ajustes", data=dict(base, cuenta_atras="cierre", cierre_dt=pasado, cierre_auto="1"))
+    r = pub.get("/")
+    assert "¡La venta de papeletas ha terminado!" in r.text and "Venta cerrada" in r.text and "Quiero mis papeletas" not in r.text
+    assert "Cerrada automáticamente" in c.get("/admin").text
+    c.post("/admin/ajustes", data=dict(base, cuenta_atras="no", cierre_dt=pasado))      # sin cierre automático
+    assert "Venta abierta" in pub.get("/").text and "cuenta-atras" not in pub.get("/").text
+
     # cierre
     c.post("/admin/ajustes", data={"_csrf": tok, "accion": "estado", "valor": "cerrada"})
     r = pub.post("/participar", data={"_csrf": tok, "token": token, "cantidad": "1", "pago": "mano:0"})
