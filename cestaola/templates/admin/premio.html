@@ -48,6 +48,15 @@
     </div>
   </form>
   {% if premio %}
+  <form method="post" action="{{ url_for('admin_premio_duplicar', pid=premio.id) }}" class="tarjeta duplicar" style="margin-top:14px">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div><b>📑 Duplicar este lote</b><div class="ayuda">Copia nombre, descripción, precio y foto. Útil para lotes iguales.</div></div>
+    <div class="fila-duplicar">
+      <label for="copias" class="ayuda" style="margin:0">Copias</label>
+      <input type="number" id="copias" name="copias" value="1" min="1" max="20" inputmode="numeric" class="inline-input" style="width:72px">
+      <button class="btn sec">Duplicar</button>
+    </div>
+  </form>
   <form method="post" style="margin-top:14px; text-align:right" data-confirmar="¿Borrar el lote «{{ premio.nombre }}»?">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="accion" value="borrar">
     <button class="btn fantasma peq">Borrar este lote</button>

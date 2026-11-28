@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import unicodedata
 import uuid
 from urllib.parse import quote
@@ -565,6 +566,31 @@ def create_app(test_config=None):
     # ---------------------------------------------------------------- tickets de compra
     def carpeta_tickets():
         return os.path.join(app.config["DATA_DIR"], "tickets")
+
+    @app.post("/admin/premios/<int:pid>/duplicar")
+    @solo_admin
+    def admin_premio_duplicar(pid):
+        """Copia un lote (nombre, descripción, precio y foto) tantas veces como se pida.
+        Cada copia tiene su propia foto, su ticket sin marcar y va al final de la lista."""
+        db = D.get_db()
+        p = db.execute("SELECT * FROM premios WHERE id=?", (pid,)).fetchone()
+        if not p:
+            abort(404)
+        copias_n = max(1, min(20, request.form.get("copias", type=int) or 1))
+        carpeta = os.path.join(app.config["DATA_DIR"], "fotos")
+        orden = db.execute("SELECT COALESCE(MAX(orden),0) FROM premios").fetchone()[0]
+        for _ in range(copias_n):
+            foto = None
+            if p["foto"] and os.path.exists(os.path.join(carpeta, os.path.basename(p["foto"]))):
+                foto = f"{uuid.uuid4().hex}.jpg"
+                shutil.copyfile(os.path.join(carpeta, os.path.basename(p["foto"])), os.path.join(carpeta, foto))
+            orden += 1
+            db.execute("INSERT INTO premios (nombre, descripcion, precio_cent, foto, orden) VALUES (?,?,?,?,?)",
+                       (p["nombre"], p["descripcion"], p["precio_cent"], foto, orden))
+        db.commit()
+        flash(f"«{p['nombre']}» duplicado {copias_n} {'veces' if copias_n != 1 else 'vez'}. "
+              "Si los lotes iguales se compraron juntos, puedes marcar su ticket desde la lista.", "ok")
+        return redirect(url_for("admin_premios"))
 
     @app.post("/admin/premios/<int:pid>/ticket")
     @solo_admin

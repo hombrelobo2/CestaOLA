@@ -377,4 +377,6 @@ details.plegable summary { cursor: pointer; font-weight: 600; color: var(--vino)
   border-radius: 12px; background: #fff; font-weight: 500; cursor: pointer; }
 .opciones-cuenta label:has(input:checked) { border-color: var(--vino); background: #fff6f4; }
 .opciones-cuenta input { accent-color: var(--vino); width: 18px; height: 18px; }
+.duplicar { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.fila-duplicar { display: flex; gap: 8px; align-items: center; }
 

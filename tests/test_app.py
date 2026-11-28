@@ -69,6 +69,15 @@ def test_flujo_completo():
     assert r.status_code == 302
     c.post("/admin/premios/nuevo", data={"_csrf": tok, "nombre": "Vino", "precio": "20"})
     assert len(os.listdir(os.path.join(tmp, "fotos"))) == 1
+    # duplicar un lote: copia con su propia foto, al final de la lista
+    n_fotos = len(os.listdir(os.path.join(tmp, "fotos")))
+    r = c.post("/admin/premios/1/duplicar", data={"_csrf": tok, "copias": "2"}, follow_redirects=True)
+    assert "duplicado 2 veces" in r.text and r.text.count("Cesta ibérica") >= 3
+    assert len(os.listdir(os.path.join(tmp, "fotos"))) == n_fotos + 2
+    c.post("/admin/premios/4", data={"_csrf": tok, "accion": "borrar"})
+    c.post("/admin/premios/3", data={"_csrf": tok, "accion": "borrar"})
+    assert len(os.listdir(os.path.join(tmp, "fotos"))) == n_fotos      # la foto del original sigue
+    assert c.get("/admin/premios/1").status_code == 200
     c.get("/admin/salir")
 
     # compra pública con Bizum
